@@ -146,15 +146,20 @@ const DigestDetail = () => {
   const [isPushing, setIsPushing] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
 
-  // Load digest on mount
+  // Load digest on mount; 404 → back to list (e.g. DB reset after redeploy)
   useEffect(() => {
-    if (id) {
-      loadDigest(id)
-    }
+    if (!id) return
+    loadDigest(id).catch((err) => {
+      const msg = err?.message ?? ""
+      if (msg.includes("not found") || msg.includes("404")) {
+        Message.warning(polyglot.t("digest.not_found"))
+        navigate("/digest")
+      }
+    })
     return () => {
       setCurrentDigest(null)
     }
-  }, [id, loadDigest])
+  }, [id, loadDigest, navigate, polyglot])
 
   // Mark as read when viewed
   useEffect(() => {
@@ -178,7 +183,13 @@ const DigestDetail = () => {
       Message.success(polyglot.t("digest.delete_success"))
       navigate("/digest")
     } catch (err) {
-      Message.error(polyglot.t("digest.delete_failed"))
+      const msg = err?.message ?? ""
+      if (msg.includes("not found") || msg.includes("404")) {
+        Message.warning(polyglot.t("digest.not_found"))
+        navigate("/digest")
+      } else {
+        Message.error(polyglot.t("digest.delete_failed"))
+      }
     } finally {
       setIsDeleting(false)
     }

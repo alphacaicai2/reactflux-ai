@@ -130,6 +130,28 @@ class MinifluxClient {
 
     return this.request(endpoint);
   }
+
+  /**
+   * Get entries for a category (GET /v1/categories/:id/entries).
+   * Use this when filtering by category to avoid compatibility issues with older Miniflux.
+   */
+  async getCategoryEntries(categoryId, options = {}) {
+    const params = new URLSearchParams();
+    if (options.order) params.set('order', options.order);
+    if (options.direction) params.set('direction', options.direction);
+    if (options.limit) params.set('limit', options.limit.toString());
+    if (options.offset) params.set('offset', options.offset.toString());
+    if (options.status) params.set('status', options.status);
+    if (options.after) params.set('after', options.after.toString());
+    if (options.before) params.set('before', options.before.toString());
+
+    const queryString = params.toString();
+    const endpoint = queryString
+      ? `/categories/${categoryId}/entries?${queryString}`
+      : `/categories/${categoryId}/entries`;
+
+    return this.request(endpoint);
+  }
 }
 
 /**
@@ -157,12 +179,17 @@ async function getRecentArticles(minifluxClient, options) {
   }
 
   if (feedId) entriesOptions.feed_id = parseInt(feedId);
-  if (groupId) entriesOptions.category_id = parseInt(groupId);
 
   console.log(`[DigestService] Fetching articles: hours=${effectiveHours}, feedId=${feedId || 'none'}, groupId=${groupId || 'none'}, unreadOnly=${unreadOnly}`);
 
   try {
-    const response = await minifluxClient.getEntries(entriesOptions);
+    let response;
+    if (groupId) {
+      const categoryId = parseInt(groupId);
+      response = await minifluxClient.getCategoryEntries(categoryId, entriesOptions);
+    } else {
+      response = await minifluxClient.getEntries(entriesOptions);
+    }
     return response.entries || [];
   } catch (error) {
     console.error('[DigestService] Fetch entries error:', error);

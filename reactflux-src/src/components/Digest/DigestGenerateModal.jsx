@@ -1,4 +1,5 @@
 import {
+  Alert,
   Button,
   Divider,
   Form,
@@ -129,10 +130,15 @@ const DigestGenerateModal = ({ visible, onCancel, onGenerate }) => {
         options.prompt = values.customPrompt.trim()
       }
 
-      // 指定分组时传分组 ID 与名称
-      if (values.scope === "group" && values.scopeId) {
-        options.groupId = values.scopeId
-        const category = categories.find((c) => c.id === values.scopeId)
+      // 指定分组时传分组 ID 与名称（确保为数字）
+      if (values.scope === "group") {
+        const scopeId = values.scopeId ?? values.groupId
+        if (scopeId == null || scopeId === "") {
+          Message.warning(polyglot.t("digest.select_group"))
+          return
+        }
+        options.groupId = Number(scopeId)
+        const category = categories.find((c) => Number(c.id) === Number(scopeId))
         if (category) {
           options.scopeName = category.title
         }
@@ -298,6 +304,15 @@ const DigestGenerateModal = ({ visible, onCancel, onGenerate }) => {
         <Message type="warning" style={{ marginBottom: 16 }}>
           {polyglot.t("ai.not_configured")}
         </Message>
+      )}
+
+      {generation.status === "error" && generation.error && (
+        <Alert
+          type="error"
+          content={generation.error}
+          style={{ marginBottom: 16 }}
+          closable
+        />
       )}
 
       {renderProgress()}

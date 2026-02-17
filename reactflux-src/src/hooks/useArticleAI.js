@@ -205,18 +205,23 @@ export function useArticleAI(article) {
     try {
       translationAbortRef.current = createAbortController()
       const targetLang = config.targetLanguage || "Simplified Chinese"
-      const results = []
+      const results = new Array(translatable.length).fill("")
+      setParagraphTranslations([...results])
 
       for (let i = 0; i < translatable.length; i++) {
         if (translationAbortRef.current?.signal?.aborted) break
+        const idx = i
         const { text } = translatable[i]
         const translated = await translate(
           text,
           targetLang,
-          null,
+          (chunk, fullContent) => {
+            results[idx] = fullContent || ""
+            setParagraphTranslations([...results])
+          },
           translationAbortRef.current?.signal
         )
-        results.push(translated || "")
+        results[idx] = translated || ""
         setParagraphTranslations([...results])
       }
 
