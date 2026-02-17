@@ -462,6 +462,9 @@
     "time_168": "7 天",
     "target_language": "目标语言",
     "unread_only": "仅未读文章",
+    "custom_prompt": "自定义 AI 提示词",
+    "custom_prompt_placeholder": "可选。留空使用默认 prompt。占位符：{{content}} = 文章列表，{{targetLang}} = 目标语言。",
+    "load_default_prompt": "加载默认 prompt",
     "auto_push": "生成后自动推送",
     "preview": "预览",
     "untitled": "未命名简报",
@@ -515,6 +518,20 @@
     "schedule_cron": "计划（Cron）",
     "schedule_cron_description": "调度的 Cron 表达式（例如 '0 9 * * *' 表示每天上午 9 点）",
     "schedule_timezone": "时区",
-    "schedule_timezone_description": "计划执行的时区"
+    "schedule_timezone_description": "计划执行的时区",
+    "schedule_section_title": "定时简报任务",
+    "schedule_section_description": "按固定时间自动生成并可选推送简报",
+    "schedule_add_task": "添加定时任务",
+    "schedule_task_name": "任务名称",
+    "schedule_task_name_placeholder": "例如：每日早报",
+    "schedule_scope": "订阅范围",
+    "schedule_hours": "文章时间范围",
+    "schedule_hours_desc": "取过去 N 小时内的文章",
+    "schedule_cron_placeholder": "0 9 * * *（每天 9 点）",
+    "schedule_next_run": "下次执行",
+    "schedule_last_run": "上次执行",
+    "schedule_run_now": "立即执行",
+    "schedule_push_after": "生成后推送",
+    "schedule_no_tasks": "暂无定时任务，点击上方按钮添加"
   }
 }

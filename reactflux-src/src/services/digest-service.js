@@ -163,6 +163,15 @@ export const generateDigest = async (options = {}) => {
 }
 
 /**
+ * Get default digest prompt template (placeholders: {{content}}, {{targetLang}})
+ * @returns {Promise<object>} { defaultPrompt: string }
+ */
+export const getDefaultPrompt = async () => {
+  const response = await digestClient.get("/prompt-default")
+  return response
+}
+
+/**
  * Push an existing digest to webhook
  * @param {number|string} id - Digest ID
  * @param {object} pushConfig - Push configuration

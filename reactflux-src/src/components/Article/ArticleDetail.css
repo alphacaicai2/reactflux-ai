@@ -227,3 +227,26 @@ p {
 .article-content td {
   color: var(--color-text-3);
 }
+
+/* 段落 + AI 翻译（原文下方显示翻译） */
+.article-body-translation {
+  line-height: 1.8;
+}
+
+.article-paragraph-with-translation {
+  margin-bottom: 1.25em;
+}
+
+.article-paragraph-with-translation .article-paragraph-original {
+  margin-block-start: 1em;
+  margin-block-end: 0.25em;
+}
+
+.article-paragraph-translation {
+  color: var(--color-text-3);
+  font-size: 0.95em;
+  margin-left: 0.5em;
+  padding-left: 0.75em;
+  border-left: 2px solid var(--color-border-2);
+  margin-bottom: 0.5em;
+}

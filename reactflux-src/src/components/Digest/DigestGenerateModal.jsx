@@ -2,6 +2,7 @@ import {
   Button,
   Divider,
   Form,
+  Input,
   Message,
   Modal,
   Progress,
@@ -14,14 +15,14 @@ import {
 } from "@arco-design/web-react"
 import { IconCheck, IconClose, IconLoading, IconSend } from "@arco-design/web-react/icon"
 import { useStore } from "@nanostores/react"
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 
 import useDigest from "@/hooks/useDigest"
 import { polyglotState } from "@/hooks/useLanguage"
-import { categoriesState, feedsState } from "@/store/dataState"
+import { categoriesState } from "@/store/dataState"
 import { isAIConfiguredState } from "@/store/aiState"
 import { digestConfigState } from "@/store/digestState"
-import { WEBHOOK_TEMPLATES } from "@/services/digest-service"
+import { getDefaultPrompt, WEBHOOK_TEMPLATES } from "@/services/digest-service"
 
 import DigestPreview from "./DigestPreview"
 
@@ -54,7 +55,6 @@ const TARGET_LANG_OPTIONS = [
 const DigestGenerateModal = ({ visible, onCancel, onGenerate }) => {
   const { polyglot } = useStore(polyglotState)
   const categories = useStore(categoriesState)
-  const feeds = useStore(feedsState)
   const isAIConfigured = useStore(isAIConfiguredState)
   const config = useStore(digestConfigState)
 
@@ -68,6 +68,7 @@ const DigestGenerateModal = ({ visible, onCancel, onGenerate }) => {
   } = useDigest()
 
   const [form] = Form.useForm()
+  const scope = Form.useWatch("scope", form) ?? "all"
   const [isGenerating, setIsGenerating] = useState(false)
   const [isPushing, setIsPushing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
@@ -96,23 +97,15 @@ const DigestGenerateModal = ({ visible, onCancel, onGenerate }) => {
     }
   }, [generation.status, generation.generatedDigest])
 
-  // Get scope options based on current selection
-  const getScopeOptions = useCallback(() => {
-    const scope = form.getFieldValue("scope")
-    if (scope === "group") {
-      return categories.map((cat) => ({
+  // 指定分组时的分组选项
+  const groupOptions = useMemo(
+    () =>
+      categories.map((cat) => ({
         label: cat.title,
         value: cat.id,
-      }))
-    }
-    if (scope === "feed") {
-      return feeds.map((feed) => ({
-        label: feed.title,
-        value: feed.id,
-      }))
-    }
-    return []
-  }, [categories, feeds, form])
+      })),
+    [categories]
+  )
 
   // Handle form submission
   const handleGenerate = useCallback(async () => {
@@ -132,19 +125,16 @@ const DigestGenerateModal = ({ visible, onCancel, onGenerate }) => {
         targetLang: values.targetLang,
         unreadOnly: values.unreadOnly,
       }
+      if (values.customPrompt && String(values.customPrompt).trim()) {
+        options.prompt = values.customPrompt.trim()
+      }
 
-      // Add scope ID based on scope type
+      // 指定分组时传分组 ID 与名称
       if (values.scope === "group" && values.scopeId) {
         options.groupId = values.scopeId
         const category = categories.find((c) => c.id === values.scopeId)
         if (category) {
           options.scopeName = category.title
-        }
-      } else if (values.scope === "feed" && values.scopeId) {
-        options.feedId = values.scopeId
-        const feed = feeds.find((f) => f.id === values.scopeId)
-        if (feed) {
-          options.scopeName = feed.title
         }
       }
 
@@ -174,7 +164,6 @@ const DigestGenerateModal = ({ visible, onCancel, onGenerate }) => {
     showPushConfig,
     config,
     categories,
-    feeds,
     generateDigest,
     clearError,
     polyglot,
@@ -329,40 +318,34 @@ const DigestGenerateModal = ({ visible, onCancel, onGenerate }) => {
             <Radio.Group disabled={isGenerating}>
               <Radio value="all">{polyglot.t("digest.scope_all")}</Radio>
               <Radio value="group">{polyglot.t("digest.scope_group")}</Radio>
-              <Radio value="feed">{polyglot.t("digest.scope_feed")}</Radio>
             </Radio.Group>
           </FormItem>
 
-          <FormItem shouldUpdate noStyle>
-            {(field, formState) => {
-              const scope = formState.scope
-              if (scope === "group" || scope === "feed") {
-                return (
-                  <FormItem
-                    label={scope === "group" ? polyglot.t("digest.select_group") : polyglot.t("digest.select_feed")}
-                    field="scopeId"
-                    rules={[{ required: true }]}
-                  >
-                    <Select
-                      placeholder={polyglot.t("digest.select_placeholder")}
-                      disabled={isGenerating}
-                      showSearch
-                      filterOption={(inputValue, option) =>
-                        option.props.children.toLowerCase().includes(inputValue.toLowerCase())
-                      }
-                    >
-                      {getScopeOptions().map((opt) => (
-                        <Select.Option key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </Select.Option>
-                      ))}
-                    </Select>
-                  </FormItem>
-                )
-              }
-              return null
-            }}
-          </FormItem>
+          {scope === "group" && (
+            <FormItem
+              label={polyglot.t("digest.select_group")}
+              field="scopeId"
+              rules={[{ required: true, message: polyglot.t("digest.select_group") }]}
+            >
+              <Select
+                placeholder={polyglot.t("digest.select_placeholder")}
+                disabled={isGenerating}
+                showSearch
+                filterOption={(inputValue, option) =>
+                  (option?.props?.children ?? "")
+                    .toString()
+                    .toLowerCase()
+                    .includes(inputValue.toLowerCase())
+                }
+              >
+                {groupOptions.map((opt) => (
+                  <Select.Option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </Select.Option>
+                ))}
+              </Select>
+            </FormItem>
+          )}
 
           <FormItem
             label={polyglot.t("digest.time_range")}
@@ -401,6 +384,41 @@ const DigestGenerateModal = ({ visible, onCancel, onGenerate }) => {
             triggerPropName="checked"
           >
             <Switch disabled={isGenerating} />
+          </FormItem>
+
+          <FormItem
+            label={
+              <Space>
+                <span>{polyglot.t("digest.custom_prompt")}</span>
+                <Button
+                  type="text"
+                  size="mini"
+                  onClick={async () => {
+                    try {
+                      const res = await getDefaultPrompt()
+                      const text = res?.data?.defaultPrompt
+                      if (text) form.setFieldValue("customPrompt", text)
+                    } catch (e) {
+                      Message.error(e?.message || "Failed to load default prompt")
+                    }
+                  }}
+                  disabled={isGenerating}
+                >
+                  {polyglot.t("digest.load_default_prompt")}
+                </Button>
+              </Space>
+            }
+            field="customPrompt"
+            extra={polyglot.t("digest.custom_prompt_placeholder")}
+          >
+            <Input.TextArea
+              placeholder={polyglot.t("digest.custom_prompt_placeholder")}
+              disabled={isGenerating}
+              autoSize={{ minRows: 3, maxRows: 8 }}
+              maxLength={8000}
+              showWordLimit
+              style={{ fontFamily: "monospace", fontSize: 12 }}
+            />
           </FormItem>
 
           {config.webhookUrl && (

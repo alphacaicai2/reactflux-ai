@@ -84,12 +84,14 @@ const MobileButtons = memo(({ commonButtons, hasHeadings, aiButton }) => (
 ))
 MobileButtons.displayName = "MobileButtons"
 
-const ActionButtons = () => {
+const ActionButtons = ({ articleAI: articleAIProp }) => {
   const { activeContent } = useStore(contentState)
   const { hasIntegrations } = useStore(dataState)
   const { polyglot } = useStore(polyglotState)
   const headings = useStore(articleHeadingsState)
   const isAIConfigured = useStore(isAIConfiguredState)
+  const articleAIFromHook = useArticleAI(activeContent)
+  const articleAI = articleAIProp ?? articleAIFromHook
 
   const {
     articleWidth,
@@ -126,14 +128,14 @@ const ActionButtons = () => {
 
   const { isBelowMedium } = useScreenWidth()
 
-  // AI translation hook
+  // AI translation (from Content when provided, else local hook)
   const {
     isTranslating,
     showTranslation,
     translateArticle,
     cancelTranslation,
     toggleTranslation,
-  } = useArticleAI(activeContent)
+  } = articleAI
 
   const isUnread = activeContent.status === "unread"
   const isStarred = activeContent.starred

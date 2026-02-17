@@ -20,6 +20,7 @@ import { useStore } from "@nanostores/react"
 import { useState, useEffect, useCallback } from "react"
 
 import SettingItem from "./SettingItem"
+import DigestScheduleSection from "./DigestScheduleSection"
 
 import { AI_PROVIDERS, getDefaultUrl } from "@/constants/ai-providers"
 import { AI_LANGUAGES, DEFAULT_TARGET_LANGUAGE } from "@/constants/ai-languages"
@@ -708,6 +709,10 @@ const AISettings = () => {
               </SettingItem>
             </>
           )}
+
+          <Divider />
+
+          <DigestScheduleSection />
         </>
       )}
 

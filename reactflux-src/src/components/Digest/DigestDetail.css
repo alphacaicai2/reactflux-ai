@@ -36,6 +36,10 @@
   flex: 1;
   overflow: auto;
   margin: 16px;
+  max-width: 900px;
+  /* 居中，视觉上更接近右栏阅读面板 */
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .digest-detail-meta {
@@ -102,6 +106,20 @@
 .digest-detail-content .digest-content li {
   margin-bottom: 6px;
   list-style-position: outside;
+}
+
+/* 文末订阅源链接样式 */
+.digest-detail-content .digest-content .digest-feed-link {
+  list-style-type: disc;
+}
+
+.digest-detail-content .digest-content .digest-feed-link a {
+  color: rgb(var(--primary-6));
+  text-decoration: none;
+}
+
+.digest-detail-content .digest-content .digest-feed-link a:hover {
+  text-decoration: underline;
 }
 
 .digest-detail-content .digest-content blockquote {

@@ -15,6 +15,7 @@ import ArticleList from "@/components/Article/ArticleList"
 import SearchAndSortBar from "@/components/Article/SearchAndSortBar"
 import FadeTransition from "@/components/ui/FadeTransition"
 import useAppData from "@/hooks/useAppData"
+import useArticleAI from "@/hooks/useArticleAI"
 import useArticleList from "@/hooks/useArticleList"
 import useContentContext from "@/hooks/useContentContext"
 import useContentHotkeys from "@/hooks/useContentHotkeys"
@@ -57,6 +58,7 @@ const Content = ({ info, getEntries, markAllAsRead }) => {
 
   const { navigateToNextArticle, navigateToPreviousArticle, showHotkeysSettings } = useKeyHandlers()
 
+  const articleAI = useArticleAI(activeContent || null)
   const { fetchAppData, fetchFeedRelatedData } = useAppData()
   const { fetchArticleList } = useArticleList(info, getEntries)
   const { isBelowMedium } = useScreenWidth()
@@ -224,7 +226,7 @@ const Content = ({ info, getEntries, markAllAsRead }) => {
       </div>
       {activeContent ? (
         <div className="article-container content-wrapper" {...handlers}>
-          {!isBelowMedium && <ActionButtons />}
+          {!isBelowMedium && <ActionButtons articleAI={articleAI} />}
           {isArticleLoading ? (
             <div style={{ flex: 1 }} />
           ) : (
@@ -241,10 +243,10 @@ const Content = ({ info, getEntries, markAllAsRead }) => {
                   </FadeTransition>
                 )}
               </AnimatePresence>
-              <ArticleDetail ref={entryDetailRef} />
+              <ArticleDetail ref={entryDetailRef} articleAI={articleAI} />
             </>
           )}
-          {isBelowMedium && <ActionButtons />}
+          {isBelowMedium && <ActionButtons articleAI={articleAI} />}
         </div>
       ) : (
         <div className="content-empty content-wrapper">

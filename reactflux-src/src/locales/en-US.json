@@ -463,6 +463,9 @@
     "time_168": "7 days",
     "target_language": "Target Language",
     "unread_only": "Unread Articles Only",
+    "custom_prompt": "Custom AI Prompt",
+    "custom_prompt_placeholder": "Optional. Leave empty to use default. Placeholders: {{content}} = article list, {{targetLang}} = target language.",
+    "load_default_prompt": "Load default prompt",
     "auto_push": "Auto-push after generation",
     "preview": "Preview",
     "untitled": "Untitled Digest",
@@ -516,6 +519,20 @@
     "schedule_cron": "Schedule (Cron)",
     "schedule_cron_description": "Cron expression for scheduling (e.g., '0 9 * * *' for daily at 9 AM)",
     "schedule_timezone": "Timezone",
-    "schedule_timezone_description": "Timezone for schedule execution"
+    "schedule_timezone_description": "Timezone for schedule execution",
+    "schedule_section_title": "Scheduled Digest Tasks",
+    "schedule_section_description": "Auto-generate (and optionally push) digests on a schedule",
+    "schedule_add_task": "Add scheduled task",
+    "schedule_task_name": "Task name",
+    "schedule_task_name_placeholder": "e.g. Daily digest",
+    "schedule_scope": "Feed scope",
+    "schedule_hours": "Article time range",
+    "schedule_hours_desc": "Include articles from the past N hours",
+    "schedule_cron_placeholder": "0 9 * * * (daily at 9 AM)",
+    "schedule_next_run": "Next run",
+    "schedule_last_run": "Last run",
+    "schedule_run_now": "Run now",
+    "schedule_push_after": "Push after generation",
+    "schedule_no_tasks": "No scheduled tasks. Click the button above to add one."
   }
 }

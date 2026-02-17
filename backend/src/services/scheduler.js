@@ -1,7 +1,12 @@
 /**
  * Scheduler Service - 定时任务调度服务
  *
- * 使用 node-cron 实现定时任务调度，用于自动生成简报
+ * 使用 node-cron 实现定时任务调度，用于自动生成简报。
+ *
+ * 任务参数含义：
+ * - 订阅源范围：scope + scope_id + scope_name（all / group / feed）→ 用哪些订阅源
+ * - 时间范围：hours → 取「过去 N 小时」内的文章（与定时无关）
+ * - 定时（执行频率）：cron_expression + timezone → 何时执行（如每天 9 点）
  */
 
 import { CronJob } from 'cron';
@@ -101,12 +106,12 @@ async function executeTask(task) {
       throw new Error('Miniflux not configured');
     }
 
-    // 准备简报选项
+    // 准备简报选项：scope/hours 为「范围」维度，与何时执行无关
     const options = {
       scope: task.scope || 'all',
       feedId: task.scope === 'feed' ? task.scope_id : undefined,
       groupId: task.scope === 'group' ? task.scope_id : undefined,
-      hours: task.hours || 24,
+      hours: task.hours || 24, // 文章时间范围：过去 N 小时
       targetLang: task.target_lang || 'Simplified Chinese',
       unreadOnly: task.unread_only === 1,
       timezone: task.timezone || 'Asia/Shanghai'

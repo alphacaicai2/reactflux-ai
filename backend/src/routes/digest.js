@@ -200,6 +200,20 @@ digest.get('/', (c) => {
 });
 
 /**
+ * GET /api/digests/prompt-default
+ * 获取默认简报 prompt 模板（占位符 {{targetLang}}、{{content}}）
+ */
+digest.get('/prompt-default', (c) => {
+  try {
+    const template = DigestService.getDefaultPromptTemplate();
+    return c.json({ success: true, data: { defaultPrompt: template } });
+  } catch (error) {
+    console.error('Error fetching default prompt:', error);
+    return c.json({ success: false, error: 'Failed to fetch default prompt' }, 500);
+  }
+});
+
+/**
  * GET /api/digests/:id
  * 获取单个简报
  */
@@ -550,6 +564,11 @@ digest.get('/schedule/:id', (c) => {
 /**
  * POST /api/digests/schedule
  * 创建定时简报任务
+ *
+ * 参数分为两个维度 + 定时：
+ * 1) 订阅源范围：scope('all'|'group'|'feed') + scopeId + scopeName → 用哪些订阅源/分组
+ * 2) 时间范围：hours → 取这些订阅源里「过去 N 小时」内的文章（如 24 = 最近 24 小时）
+ * 3) 定时（执行频率）：cronExpression + timezone → 何时执行，例如 "0 9 * * *" 表示每天 9 点执行
  */
 digest.post('/schedule', async (c) => {
   try {

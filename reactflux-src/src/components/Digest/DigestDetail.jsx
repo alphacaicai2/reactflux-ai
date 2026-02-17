@@ -80,6 +80,8 @@ const getTimeRangeLabel = (hours, polyglot) => {
 
 /**
  * Simple markdown to HTML renderer
+ * NOTE: 这里是给简报用的轻量级渲染，不追求 100% Markdown 语法，
+ * 但要保证标题、列表和文末订阅源链接的可读性。
  */
 const renderMarkdown = (content) => {
   if (!content) return ""
@@ -89,21 +91,35 @@ const renderMarkdown = (content) => {
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
-    // Headers
+    // Headers（先匹配更深层级）
+    .replace(/^#### (.*$)/gim, "<h4>$1</h4>")
     .replace(/^### (.*$)/gim, "<h3>$1</h3>")
     .replace(/^## (.*$)/gim, "<h2>$1</h2>")
     .replace(/^# (.*$)/gim, "<h1>$1</h1>")
-    // Bold
+    // 粗体
     .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
-    // Italic
+    // 斜体
     .replace(/\*(.*?)\*/g, "<em>$1</em>")
-    // Links
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
-    // Line breaks
-    .replace(/\n/g, "<br>")
-    // Lists
+
+  // 文末订阅源：形如 "- [Last Week in AI [Youtube]](#/feed/34)"
+  // 转成内部可点链接，不新开标签
+  html = html.replace(
+    /^\- \[([^\]]+)\]\(#\/feed\/(\d+)\)$/gim,
+    '<li class="digest-feed-link"><a href="#/feed/$2">$1</a></li>',
+  )
+
+  // 普通外部链接：只处理 http/https，避免误伤内部 #/feed 链接
+  html = html.replace(
+    /\[([^\]]+)\]\((https?:\/\/[^)]+)\)/gim,
+    '<a href="$2" target="_blank" rel="noopener">$1</a>',
+  )
+
+  // 换行
+  html = html.replace(/\n/g, "<br>")
+
+  // 列表（不区分 ul/ol，这里只负责 li，外层由 CSS 控制）
+  html = html
     .replace(/^\- (.*$)/gim, "<li>$1</li>")
-    // Numbers
     .replace(/^\d+\. (.*$)/gim, "<li>$1</li>")
 
   return html

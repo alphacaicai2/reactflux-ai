@@ -125,9 +125,12 @@ export async function sendPushNotification(pushConfig, title, content) {
   // ---- GET 模式：URL 编码，单条发送 ----
   if (pushMethod === 'GET') {
     try {
+      const encTitle = encodeURIComponent(title || '');
+      const encContent = encodeURIComponent(content || '');
       const pushUrl = pushConfig.url
-        .replace(/\{\{title\}\}/g, encodeURIComponent(title || ''))
-        .replace(/\{\{digest_content\}\}/g, encodeURIComponent(content || ''));
+        .replace(/\{\{title\}\}/g, encTitle)
+        .replace(/\{\{digest_content\}\}/g, encContent)
+        .replace(/\{\{content\}\}/g, encContent);
 
       const resp = await fetch(pushUrl, { method: 'GET' });
 
@@ -174,10 +177,11 @@ export async function sendPushNotification(pushConfig, title, content) {
   }
 
   if (fieldLimit > 0 && content && content.length > fieldLimit) {
-    // 计算模板开销
+    // 计算模板开销（{{content}} 与 {{digest_content}} 均表示正文）
     const templateOverhead = bodyTemplate
       .replace(/\{\{title\}\}/g, title || '')
-      .replace(/\{\{digest_content\}\}/g, '').length;
+      .replace(/\{\{digest_content\}\}/g, '')
+      .replace(/\{\{content\}\}/g, '').length;
 
     const availablePerChunk = fieldLimit - Math.min(templateOverhead, fieldLimit * 0.3);
 
@@ -197,10 +201,13 @@ export async function sendPushNotification(pushConfig, title, content) {
     // 安全转义 JSON 字符串
     const chunkSafeTitle = JSON.stringify(chunkTitle).slice(1, -1);
     const chunkSafeContent = JSON.stringify(contentChunks[i]).slice(1, -1);
+    const safeTimestamp = new Date().toISOString();
 
-    const body = bodyTemplate
+    let body = bodyTemplate
       .replace(/\{\{title\}\}/g, chunkSafeTitle + suffix)
-      .replace(/\{\{digest_content\}\}/g, chunkSafeContent);
+      .replace(/\{\{digest_content\}\}/g, chunkSafeContent)
+      .replace(/\{\{content\}\}/g, chunkSafeContent)
+      .replace(/\{\{timestamp\}\}/g, safeTimestamp);
 
     // 添加 Telegram 分段标记
     if (platform === 'telegram' && contentChunks.length > 1) {

@@ -29,19 +29,21 @@ CREATE TABLE IF NOT EXISTS digests (
 );
 
 -- Scheduled Tasks Table (for digest scheduling)
+-- Two dimensions: (1) scope/scope_id = which feeds; (2) hours = article time window (past N hours).
+-- Schedule (when to run): cron_expression + timezone.
 CREATE TABLE IF NOT EXISTS scheduled_tasks (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,                 -- task name for display
-  scope TEXT NOT NULL,                -- 'all', 'feed', 'group'
+  scope TEXT NOT NULL,                -- 'all', 'feed', 'group' (which feeds)
   scope_id INTEGER,                   -- feed_id or category_id
   scope_name TEXT,                    -- display name for scope
-  hours INTEGER DEFAULT 24,           -- time range in hours
+  hours INTEGER DEFAULT 24,           -- article time range: past N hours (not schedule frequency)
   target_lang TEXT DEFAULT 'zh-CN',   -- target language
   unread_only INTEGER DEFAULT 1,      -- only include unread articles
   push_enabled INTEGER DEFAULT 0,     -- enable push notification
   push_config TEXT,                   -- JSON: { url, method, body }
-  cron_expression TEXT NOT NULL,      -- cron expression for schedule
-  timezone TEXT DEFAULT 'Asia/Shanghai', -- timezone for schedule
+  cron_expression TEXT NOT NULL,      -- when to run (e.g. '0 9 * * *' = daily 9:00)
+  timezone TEXT DEFAULT 'Asia/Shanghai', -- timezone for cron
   is_active INTEGER DEFAULT 1,        -- task enabled status
   last_run_at DATETIME,               -- last execution time
   next_run_at DATETIME,               -- next scheduled time

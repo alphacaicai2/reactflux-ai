@@ -256,7 +256,7 @@ ${articlesList}`;
       .replace(/\{\{content\}\}/g, contentBlock);
   }
 
-  // 默认提示词
+  // 默认提示词（与 getDefaultPromptTemplate 保持一致，此处内联 targetLang/scope/content）
   return `You are a professional news editor. Generate a concise digest based ONLY on the following list of recent ${scope} articles.
 
 ## CRITICAL CONSTRAINT:
@@ -275,6 +275,23 @@ ${articlesList}`;
 
 ${articlesList}`;
 }
+
+/** 默认 prompt 模板（占位符 {{targetLang}}、{{content}}），供前端展示/编辑用 */
+const DEFAULT_PROMPT_TEMPLATE = `You are a professional news editor. Generate a concise digest based ONLY on the following list of recent articles.
+
+## CRITICAL CONSTRAINT:
+- Use ONLY information from the article list below. Do not add any facts, events, or details from your training data or external knowledge.
+- Every claim in your digest must be traceable to one of the listed articles. If something is not in the list, do not include it.
+
+## Output Requirements:
+1. Output in {{targetLang}}
+2. Start with a 2-3 sentence overview of the key content from these articles only
+3. Categorize by topic or importance, listing key information in concise bullet points
+4. If multiple articles relate to the same topic, combine them
+5. Keep the format concise and compact, using Markdown
+6. Output the content directly, no opening remarks like "Here is the digest"
+
+{{content}}`;
 
 /**
  * 调用 AI API 生成简报
@@ -398,6 +415,13 @@ function saveDigest(digestData) {
  * DigestService 主对象
  */
 export const DigestService = {
+  /**
+   * 返回默认 prompt 模板（占位符 {{targetLang}}、{{content}}），供前端展示
+   */
+  getDefaultPromptTemplate() {
+    return DEFAULT_PROMPT_TEMPLATE;
+  },
+
   /**
    * 创建 Miniflux 客户端
    */

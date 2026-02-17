@@ -331,7 +331,8 @@ const getHtmlParserOptions = (imageSources, togglePhotoSlider) => {
   return options
 }
 
-const ArticleDetail = forwardRef((_, ref) => {
+const ArticleDetail = forwardRef((props, ref) => {
+  const { articleAI } = props || {}
   const navigate = useNavigate()
   const { isBelowMedium } = useScreenWidth()
 
@@ -491,7 +492,27 @@ const ArticleDetail = forwardRef((_, ref) => {
                 }}
               />
             )}
-            {parsedHtml}
+            {articleAI?.showTranslation &&
+            articleAI?.blocks?.length > 0 &&
+            articleAI?.paragraphTranslations?.length > 0 ? (
+              <div className="article-body-translation">
+                {articleAI.blocks.map((block, i) => (
+                  <div key={i} className="article-paragraph-with-translation">
+                    <div
+                      className="article-paragraph-original"
+                      dangerouslySetInnerHTML={{ __html: block.html }}
+                    />
+                    {articleAI.paragraphTranslations[i] && (
+                      <div className="article-paragraph-translation">
+                        {articleAI.paragraphTranslations[i]}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              parsedHtml
+            )}
             <Lightbox
               animation={getLightboxAnimationConfig()}
               carousel={{ finite: true, padding: 0 }}

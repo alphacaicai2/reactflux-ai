@@ -31,6 +31,48 @@ const extractPlainText = (html, maxLength = 8000) => {
   return textContent.slice(0, maxLength)
 }
 
+const BLOCK_TAGS = new Set(["p", "div", "h1", "h2", "h3", "h4", "h5", "h6", "li", "blockquote", "pre", "table", "ul", "ol"])
+
+/**
+ * Extract block-level elements from HTML in document order.
+ * Paragraphs (<p>) get { type: 'p', html, text } for translation; others get { type: 'other', html }.
+ * @param {string} html - HTML content
+ * @returns {{ type: string, html: string, text?: string }[]}
+ */
+function extractBlocks(html) {
+  if (!html || typeof document === "undefined") return []
+
+  const parser = new DOMParser()
+  const doc = parser.parseFromString(html, "text/html")
+  const blocks = []
+
+  function walk(node) {
+    if (node.nodeType !== Node.ELEMENT_NODE) return
+    const tag = node.tagName.toLowerCase()
+    if (tag === "p") {
+      const text = (node.textContent || "").trim()
+      if (text) blocks.push({ type: "p", html: node.outerHTML, text })
+      return
+    }
+    if (BLOCK_TAGS.has(tag)) {
+      for (let i = 0; i < node.childNodes.length; i++) {
+        walk(node.childNodes[i])
+      }
+      return
+    }
+    for (let i = 0; i < node.childNodes.length; i++) {
+      walk(node.childNodes[i])
+    }
+  }
+
+  if (doc.body) {
+    for (let i = 0; i < doc.body.childNodes.length; i++) {
+      walk(doc.body.childNodes[i])
+    }
+  }
+  return blocks
+}
+
 /**
  * Custom hook for article AI operations
  * @param {object} article - The article object
@@ -47,22 +89,26 @@ export function useArticleAI(article) {
   const [summaryError, setSummaryError] = useState(null)
   const summaryAbortRef = useRef(null)
 
-  // Translation state
+  // Translation state: blocks from HTML, and per-paragraph translations (same length as translatable blocks)
+  const [blocks, setBlocks] = useState([])
+  const [paragraphTranslations, setParagraphTranslations] = useState([])
   const [translatedContent, setTranslatedContent] = useState("")
   const [isTranslating, setIsTranslating] = useState(false)
   const [translationError, setTranslationError] = useState(null)
   const [showTranslation, setShowTranslation] = useState(false)
   const translationAbortRef = useRef(null)
 
-  // Reset state when article changes
+  // Reset state when article changes; (re)compute blocks from content
   useEffect(() => {
     setSummary("")
     setSummaryError(null)
     setIsSummarizing(false)
     setTranslatedContent("")
+    setParagraphTranslations([])
     setTranslationError(null)
     setIsTranslating(false)
     setShowTranslation(false)
+    setBlocks(article?.content ? extractBlocks(article.content) : [])
 
     // Cancel any ongoing operations
     if (summaryAbortRef.current) {
@@ -73,7 +119,7 @@ export function useArticleAI(article) {
       cancelOperation(translationAbortRef.current)
       translationAbortRef.current = null
     }
-  }, [article?.id])
+  }, [article?.id, article?.content])
 
   // Cleanup on unmount
   useEffect(() => {
@@ -136,7 +182,7 @@ export function useArticleAI(article) {
   }, [])
 
   /**
-   * Translate article content
+   * Translate article content: translate each paragraph and show below original (uses AI settings).
    */
   const translateArticle = useCallback(async () => {
     if (!isConfigured || !article?.content) {
@@ -144,23 +190,35 @@ export function useArticleAI(article) {
       return
     }
 
+    const list = article.content ? extractBlocks(article.content) : []
+    const translatable = list.filter((b) => b.type === "p" && b.text)
+    if (translatable.length === 0) {
+      setTranslationError(polyglot.t("ai.translation_error"))
+      return
+    }
+
     setIsTranslating(true)
     setTranslationError(null)
-    setTranslatedContent("")
+    setParagraphTranslations([])
+    setBlocks(list)
 
     try {
       translationAbortRef.current = createAbortController()
+      const targetLang = config.targetLanguage || "Simplified Chinese"
+      const results = []
 
-      const textContent = extractPlainText(article.content, 12000)
-
-      await translate(
-        textContent,
-        config.targetLanguage || "zh-CN",
-        (chunk, fullContent) => {
-          setTranslatedContent(fullContent)
-        },
-        translationAbortRef.current.signal
-      )
+      for (let i = 0; i < translatable.length; i++) {
+        if (translationAbortRef.current?.signal?.aborted) break
+        const { text } = translatable[i]
+        const translated = await translate(
+          text,
+          targetLang,
+          null,
+          translationAbortRef.current?.signal
+        )
+        results.push(translated || "")
+        setParagraphTranslations([...results])
+      }
 
       setShowTranslation(true)
     } catch (err) {
@@ -212,6 +270,7 @@ export function useArticleAI(article) {
     setSummary("")
     setSummaryError(null)
     setTranslatedContent("")
+    setParagraphTranslations([])
     setTranslationError(null)
     setShowTranslation(false)
   }, [cancelAI])
@@ -224,7 +283,9 @@ export function useArticleAI(article) {
     summarizeArticle,
     cancelSummary,
 
-    // Translation
+    // Translation (paragraph-level: blocks + paragraphTranslations for "translation below each paragraph")
+    blocks,
+    paragraphTranslations,
     translatedContent,
     isTranslating,
     translationError,
