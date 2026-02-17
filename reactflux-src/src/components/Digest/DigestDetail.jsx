@@ -15,7 +15,7 @@ import {
   IconDelete,
   IconLeft,
   IconSend,
-  IconShareStroked,
+  IconShare,
 } from "@arco-design/web-react/icon"
 import { useStore } from "@nanostores/react"
 import { useCallback, useEffect, useState } from "react"
@@ -261,7 +261,7 @@ const DigestDetail = () => {
 
           <Button
             type="text"
-            icon={<IconShareStroked />}
+            icon={<IconShare />}
             onClick={handleShare}
           >
             {polyglot.t("digest.share")}

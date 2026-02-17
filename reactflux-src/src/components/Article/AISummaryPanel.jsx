@@ -1,5 +1,5 @@
 import { Button, Card, Space, Spin, Typography } from "@arco-design/web-react"
-import { IconClose, IconRefresh, IconRobot, IconSummary } from "@arco-design/web-react/icon"
+import { IconClose, IconRefresh, IconRobot } from "@arco-design/web-react/icon"
 import { useStore } from "@nanostores/react"
 import { useState, useEffect, useCallback, useRef } from "react"
 
@@ -131,7 +131,7 @@ const AISummaryPanel = ({
     >
       <div className="ai-summary-header">
         <Space>
-          <IconSummary />
+          <IconRobot />
           <Text bold>{polyglot.t("ai.summary")}</Text>
           {isStreaming && (
             <Text type="secondary" size="small">
