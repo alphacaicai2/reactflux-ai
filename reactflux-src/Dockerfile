@@ -24,6 +24,9 @@ COPY . .
 ARG VITE_AI_API_BASE_URL=/api/ai
 ENV VITE_AI_API_BASE_URL=${VITE_AI_API_BASE_URL}
 
+# Increase Node.js memory limit for build
+ENV NODE_OPTIONS="--max-old-space-size=4096"
+
 # Build the project
 RUN pnpm run build
 
