@@ -5,7 +5,13 @@ root * /srv
 # 代理 AI API 到后端服务
 handle /api/ai/* {
     uri strip_prefix /api/ai
-    reverse_proxy reactflux-ai:3001
+    reverse_proxy reactflux-ai-backend:3001
+}
+
+# 代理简报 API 到后端服务
+handle /api/digests/* {
+    uri strip_prefix /api/digests
+    reverse_proxy reactflux-ai-backend:3001/digests
 }
 
 # 处理 SPA 路由
