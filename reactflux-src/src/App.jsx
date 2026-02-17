@@ -15,6 +15,7 @@ import useLanguage, { polyglotState } from "./hooks/useLanguage"
 import useScreenWidth from "./hooks/useScreenWidth"
 import useTheme from "./hooks/useTheme"
 import useVersionCheck from "./hooks/useVersionCheck"
+import { loadConfig } from "./services/ai-service"
 import { settingsState } from "./store/settingsState"
 import { GITHUB_REPO_PATH } from "./utils/constants"
 import hideSpinner from "./utils/loading"
@@ -43,6 +44,12 @@ const App = () => {
 
   useEffect(() => {
     hideSpinner()
+  }, [])
+
+  useEffect(() => {
+    loadConfig().catch((error) => {
+      console.warn("Failed to load AI config from backend:", error)
+    })
   }, [])
 
   useEffect(() => {

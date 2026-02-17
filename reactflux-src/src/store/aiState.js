@@ -16,6 +16,7 @@ const defaultConfig = {
   provider: "", // Provider ID (e.g., 'openai', 'anthropic')
   apiUrl: "", // Custom API URL (optional, uses default if empty)
   apiKey: "", // API key (stored securely, not persisted to localStorage by default)
+  hasStoredApiKey: false, // Whether backend already stores an API key
   model: "", // Model name (e.g., 'gpt-4o')
   region: "", // Region for providers that support it (e.g., '国内', '国外')
   targetLanguage: DEFAULT_TARGET_LANGUAGE, // Default target language for translation
@@ -71,7 +72,7 @@ export const aiErrorState = atom(null)
 export const isAIConfiguredState = computed(
   [aiConfigState, aiApiKeyState],
   (config, apiKey) => {
-    return !!(config.enabled && config.provider && config.model && apiKey)
+    return !!(config.enabled && config.provider && config.model && (apiKey || config.hasStoredApiKey))
   },
 )
 
@@ -91,14 +92,18 @@ export const getAIConfig = () => {
  */
 export const updateAIConfig = (updates) => {
   const currentConfig = aiConfigState.get()
+  const nextUpdates = { ...updates }
 
   // Handle API key separately
-  if ("apiKey" in updates) {
-    aiApiKeyState.set(updates.apiKey)
-    delete updates.apiKey
+  if ("apiKey" in nextUpdates) {
+    aiApiKeyState.set(nextUpdates.apiKey)
+    if (nextUpdates.apiKey) {
+      nextUpdates.hasStoredApiKey = true
+    }
+    delete nextUpdates.apiKey
   }
 
-  aiConfigState.set({ ...currentConfig, ...updates })
+  aiConfigState.set({ ...currentConfig, ...nextUpdates })
 }
 
 /**

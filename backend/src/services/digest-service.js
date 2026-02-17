@@ -9,8 +9,9 @@
  */
 
 import db from '../db/index.js';
-import { decrypt } from '../utils/encryption.js';
+import { decrypt, encrypt } from '../utils/encryption.js';
 import { getProviderPreset } from '../utils/config.js';
+import { proxyChatRequest } from './ai-service.js';
 
 // 时间范围与小时的映射
 const RANGE_HOURS = { 12: 12, 24: 24, 72: 72, 168: 168, 0: 0 };
@@ -46,22 +47,48 @@ function truncateByToken(text, maxTokens) {
 
 /**
  * Miniflux API Client
+ * Supports both API Key (X-Auth-Token) and Basic Auth
  */
 class MinifluxClient {
   constructor(config) {
     this.baseUrl = config.apiUrl?.replace(/\/$/, '') || '';
     this.apiKey = config.apiKey;
+    this.authMode = 'token'; // 'token' or 'basic'
+
+    // Detect if the apiKey looks like a Basic Auth credential (base64 encoded username:password)
+    // Miniflux API keys are in format: username:uuid (e.g., "admin:A4B34621-8059-4CC7-948C-4EF017594B38")
+    // Basic Auth credentials are base64 encoded: base64(username:password)
+    if (this.apiKey) {
+      try {
+        const decoded = Buffer.from(this.apiKey, 'base64').toString('utf-8');
+        // If decoded contains a colon but not a UUID pattern, it's likely Basic Auth
+        if (decoded.includes(':') && !decoded.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i)) {
+          this.authMode = 'basic';
+        }
+      } catch (e) {
+        // Not valid base64, use as API key
+      }
+    }
   }
 
   async request(endpoint, options = {}) {
     const url = `${this.baseUrl}/v1${endpoint}`;
+
+    const headers = {
+      'Content-Type': 'application/json',
+      ...options.headers
+    };
+
+    // Set auth header based on mode
+    if (this.authMode === 'basic') {
+      headers['Authorization'] = `Basic ${this.apiKey}`;
+    } else {
+      headers['X-Auth-Token'] = this.apiKey;
+    }
+
     const response = await fetch(url, {
       ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Auth-Token': this.apiKey,
-        ...options.headers
-      }
+      headers
     });
 
     if (!response.ok) {
@@ -253,53 +280,90 @@ ${articlesList}`;
  * 调用 AI API 生成简报
  */
 async function callAIForDigest(prompt, aiConfig) {
-  if (!aiConfig || !aiConfig.apiUrl || !aiConfig.apiKey) {
+  if (!aiConfig || !aiConfig.provider || !aiConfig.apiUrl || !aiConfig.apiKey) {
     throw new Error('AI 未配置，请先在设置中配置 AI API');
   }
 
-  const normalizeApiUrl = (url) => {
-    let normalized = url.trim();
-    if (!normalized.endsWith('/')) normalized += '/';
-    if (!normalized.endsWith('chat/completions')) {
-      normalized += 'chat/completions';
+  const providerPreset = getProviderPreset(aiConfig.provider);
+  const model = aiConfig.model || providerPreset?.defaultModel || 'gpt-4o-mini';
+  const decoder = new TextDecoder();
+  const chunks = [];
+  const mockController = {
+    enqueue(data) {
+      chunks.push(typeof data === 'string' ? data : decoder.decode(data, { stream: true }));
     }
-    return normalized;
   };
 
-  const apiUrl = normalizeApiUrl(aiConfig.apiUrl);
-
-  const controller = new AbortController();
-  const timeout = setTimeout(() => {
-    controller.abort();
-  }, 600000); // 10 minutes timeout
+  let timeoutId;
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error('AI 请求超时，请稍后重试')), 600000);
+  });
 
   try {
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${aiConfig.apiKey}`
+    const requestPromise = proxyChatRequest(
+      {
+        provider: aiConfig.provider,
+        api_url: aiConfig.apiUrl,
+        api_key_encrypted: encrypt(aiConfig.apiKey),
+        model
       },
-      body: JSON.stringify({
-        model: aiConfig.model || 'gpt-4o-mini',
-        temperature: aiConfig.temperature ?? 1,
+      {
+        model,
+        temperature: aiConfig.temperature ?? 0.7,
         messages: [
           { role: 'user', content: prompt }
         ],
-        stream: false
-      }),
-      signal: controller.signal
-    });
+        // Stream mode lets the shared proxy layer normalize provider-specific chunk formats.
+        stream: true
+      },
+      mockController
+    );
 
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.error?.message || `AI API 错误: ${response.status}`);
+    await Promise.race([requestPromise, timeoutPromise]);
+
+    let content = '';
+    const streamText = chunks.join('');
+    const lines = streamText.split('\n');
+
+    for (const rawLine of lines) {
+      const line = rawLine.trim();
+      if (!line.startsWith('data:')) continue;
+
+      const payload = line.slice(5).trim();
+      if (!payload || payload === '[DONE]') continue;
+
+      let parsed;
+      try {
+        parsed = JSON.parse(payload);
+      } catch {
+        continue;
+      }
+
+      if (parsed.error) {
+        throw new Error(parsed.error);
+      }
+
+      const piece =
+        parsed.choices?.[0]?.delta?.content ||
+        parsed.choices?.[0]?.message?.content ||
+        parsed.content ||
+        '';
+
+      if (piece) {
+        content += piece;
+      }
     }
 
-    const data = await response.json();
-    return data.choices?.[0]?.message?.content || '';
+    const result = content.trim();
+    if (!result) {
+      throw new Error('AI 返回为空，请检查模型配置后重试');
+    }
+
+    return result;
   } finally {
-    clearTimeout(timeout);
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
   }
 }
 

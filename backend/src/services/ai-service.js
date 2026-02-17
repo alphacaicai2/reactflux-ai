@@ -124,10 +124,11 @@ function buildEndpointUrl(provider, apiUrl, model, apiKey) {
  * @returns {Promise<object>} - Test result
  */
 export async function testConnection(config) {
-  const { provider, apiUrl, apiKeyEncrypted, model } = config;
+  const { provider, apiUrl, apiKeyEncrypted, api_key_encrypted, model } = config;
+  const encryptedKey = apiKeyEncrypted || api_key_encrypted;
 
   try {
-    const apiKey = decrypt(apiKeyEncrypted);
+    const apiKey = decrypt(encryptedKey);
     const preset = getProviderPreset(provider);
 
     if (!preset) {
@@ -181,11 +182,12 @@ export async function testConnection(config) {
  * @returns {Promise<void>}
  */
 export async function proxyChatRequest(config, params, controller) {
-  const { provider, apiUrl, apiKeyEncrypted } = config;
+  const { provider, apiUrl, apiKeyEncrypted, api_key_encrypted } = config;
   const { model, messages, stream = true, ...extraParams } = params;
+  const encryptedKey = apiKeyEncrypted || api_key_encrypted;
 
   try {
-    const apiKey = decrypt(apiKeyEncrypted);
+    const apiKey = decrypt(encryptedKey);
     const preset = getProviderPreset(provider);
 
     if (!preset) {

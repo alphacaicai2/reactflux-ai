@@ -1,0 +1,12 @@
+# 使用预构建的前端文件
+FROM caddy:2-alpine
+
+# 复制构建好的前端文件
+COPY reactflux-src/build /srv
+
+# 复制 Caddy 配置
+COPY reactflux-src/Caddyfile /etc/caddy/Caddyfile
+
+EXPOSE 2000
+
+CMD ["caddy", "run", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"]

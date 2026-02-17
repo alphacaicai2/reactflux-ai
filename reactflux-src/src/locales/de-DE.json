@@ -281,6 +281,7 @@
     "cover_display_mode_auto": "Automatisch",
     "cover_display_mode_banner": "Banner",
     "cover_display_mode_thumbnail": "Miniaturbild",
+    "cover_display_mode_text": "Nur Text (dicht)",
     "show_detailed_relative_time_label": "Genaue relative Zeitangabe anzeigen",
     "show_detailed_relative_time_description": "Zeitangabe in Artikelkarte (wird relativ zum derzeitigen Zeitpunkt angezeigt) exakt ausgeben",
     "show_estimated_reading_time_label": "Geschätzte Lesedauer anzeigen",

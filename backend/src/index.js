@@ -26,6 +26,19 @@ app.use('*', cors({
   allowHeaders: ['Content-Type', 'Authorization']
 }));
 
+// Custom trailing slash handler - redirect to non-trailing slash
+app.use('*', async (c, next) => {
+  const url = new URL(c.req.url);
+  const path = url.pathname;
+  // Only trim trailing slashes for API routes (not root)
+  if (path.length > 1 && path.endsWith('/')) {
+    const search = url.search;
+    const newPath = path.slice(0, -1);
+    return c.redirect(newPath + search, 308);
+  }
+  await next();
+});
+
 // Health check
 app.get('/', (c) => {
   return c.json({

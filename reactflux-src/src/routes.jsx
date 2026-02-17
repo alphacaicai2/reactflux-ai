@@ -21,6 +21,7 @@ const pageRoutes = {
   starred: <Starred />,
   history: <History />,
   digest: <Digest />,
+  "digest/:id": <Digest />,
   "category/:id": <Category />,
   "feed/:id": <Feed />,
 }

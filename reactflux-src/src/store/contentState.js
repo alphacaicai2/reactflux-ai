@@ -1,6 +1,6 @@
 import { computed, map } from "nanostores"
 
-import { dataState, feedsState, hiddenFeedIdsState, unreadTotalState } from "./dataState"
+import { dataState, hiddenFeedIdsState } from "./dataState"
 import { getSettings, settingsState } from "./settingsState"
 
 import removeDuplicateEntries from "@/utils/deduplicate"
@@ -52,11 +52,11 @@ export const filteredEntriesState = computed(
 )
 
 export const dynamicCountState = computed(
-  [contentState, dataState, unreadTotalState, settingsState, feedsState],
-  (content, data, unreadTotal, settings, feeds) => {
+  [contentState, dataState, settingsState],
+  (content, data, settings) => {
     const { infoFrom, total } = content
     const { showStatus } = settings
-    const { unreadStarredCount, unreadTodayCount, historyCount, starredCount, unreadInfo } = data
+    const { unreadStarredCount, historyCount, starredCount } = data
 
     if (infoFrom === "starred") {
       return showStatus === "unread" ? unreadStarredCount : starredCount
@@ -67,29 +67,8 @@ export const dynamicCountState = computed(
     }
 
     if (showStatus === "unread") {
-      switch (infoFrom) {
-        case "all": {
-          return unreadTotal
-        }
-        case "today": {
-          return unreadTodayCount
-        }
-        case "feed": {
-          const id = content.infoId
-          if (id) {
-            return unreadInfo[id] || 0
-          }
-          return total
-        }
-        case "category": {
-          const id = content.infoId
-          if (id) {
-            const feedsInCategory = feeds.filter((feed) => feed.category.id === Number(id))
-            return feedsInCategory.reduce((acc, feed) => acc + (unreadInfo[feed.id] || 0), 0)
-          }
-          return total
-        }
-      }
+      // Keep the displayed count aligned with current Miniflux query result.
+      return total
     }
 
     return total

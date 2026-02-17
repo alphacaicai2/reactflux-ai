@@ -74,7 +74,10 @@ export function useAI() {
       if (newConfig.apiKey) {
         setAIApiKey(newConfig.apiKey)
       }
-      updateAIConfig(newConfig)
+      updateAIConfig({
+        ...newConfig,
+        hasStoredApiKey: Boolean(newConfig.apiKey || newConfig.hasStoredApiKey),
+      })
 
       return result
     } catch (err) {

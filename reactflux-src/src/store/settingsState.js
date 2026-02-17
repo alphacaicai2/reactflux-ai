@@ -16,7 +16,7 @@ const defaultValue = {
   lightboxSlideAnimation: true,
   markReadBy: "view",
   markReadOnScroll: false,
-  orderBy: "created_at",
+  orderBy: "published_at",
   orderDirection: "desc",
   pageSize: 100,
   removeDuplicates: "none",

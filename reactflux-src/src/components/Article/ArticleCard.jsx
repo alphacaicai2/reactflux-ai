@@ -110,6 +110,7 @@ const ArticleCard = ({ entry, handleEntryClick, children }) => {
   const isSelected = activeContent?.id === entry.id
   const isUnread = entry.status === "unread"
   const isStarred = entry.starred
+  const isTextOnlyMode = coverDisplayMode === "text"
 
   const {
     handleSaveToThirdPartyServices,
@@ -189,6 +190,13 @@ const ArticleCard = ({ entry, handleEntryClick, children }) => {
   useEffect(() => {
     let isSubscribed = true
 
+    if (isTextOnlyMode) {
+      setIsWideImage(false)
+      setIsImageLoaded(false)
+      setHasError(false)
+      return
+    }
+
     if (entry.coverSource) {
       const img = new Image()
       img.src = entry.coverSource
@@ -239,9 +247,14 @@ const ArticleCard = ({ entry, handleEntryClick, children }) => {
   }, [entry.coverSource, coverDisplayMode])
 
   const getLineClamp = () => {
-    const hasSideImage = entry.coverSource && !hasError && !isWideImage
+    const hasSideImage = !isTextOnlyMode && entry.coverSource && !hasError && !isWideImage
     return !showEstimatedReadingTime && hasSideImage ? 4 : 3
   }
+
+  const cardWrapperClassName = useMemo(() => {
+    const baseClass = isSelected ? "card-wrapper selected" : "card-wrapper"
+    return isTextOnlyMode ? `${baseClass} card-wrapper-text-only` : baseClass
+  }, [isSelected, isTextOnlyMode])
 
   const previewContent = useMemo(() => extractTextFromHtml(entry.content), [entry.content])
 
@@ -299,7 +312,7 @@ const ArticleCard = ({ entry, handleEntryClick, children }) => {
     >
       <div
         ref={cardRef}
-        className={isSelected ? "card-wrapper selected" : "card-wrapper"}
+        className={cardWrapperClassName}
         data-entry-id={entry.id}
         onClick={() => handleEntryClick(entry)}
         onKeyDown={(e) => {
@@ -344,7 +357,7 @@ const ArticleCard = ({ entry, handleEntryClick, children }) => {
             />
           </div>
 
-          {entry.coverSource && !hasError && isImageLoaded && isWideImage && (
+          {!isTextOnlyMode && entry.coverSource && !hasError && isImageLoaded && isWideImage && (
             <div className="card-image-wide">
               <ArticleCardImage entry={entry} isWideImage={isWideImage} setHasError={setHasError} />
             </div>
@@ -365,7 +378,7 @@ const ArticleCard = ({ entry, handleEntryClick, children }) => {
                 {previewContent}
               </p>
             </div>
-            {entry.coverSource && !hasError && isImageLoaded && !isWideImage && (
+            {!isTextOnlyMode && entry.coverSource && !hasError && isImageLoaded && !isWideImage && (
               <div className="card-image-mini">
                 <ArticleCardImage
                   entry={entry}

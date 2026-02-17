@@ -225,7 +225,13 @@ ai.post('/test', async (c) => {
         }, 400);
       }
 
-      configToTest = dbConfig;
+      // Map database column names to expected format
+      configToTest = {
+        provider: dbConfig.provider,
+        apiUrl: dbConfig.api_url,
+        apiKeyEncrypted: dbConfig.api_key_encrypted,
+        model: dbConfig.model
+      };
     }
 
     const result = await testConnection(configToTest);
@@ -238,34 +244,261 @@ ai.post('/test', async (c) => {
 });
 
 /**
+ * POST /api/ai/translate
+ * Translate content using AI
+ */
+ai.post('/translate', async (c) => {
+  try {
+    const body = await c.req.json();
+    const { config: requestConfig, content, targetLang, provider } = body;
+
+    if (!content) {
+      return c.json({ success: false, error: 'Content is required' }, 400);
+    }
+
+    // Get configuration
+    let config = await getAIConfig(requestConfig, provider);
+
+    if (!config || !config.api_key_encrypted) {
+      return c.json({
+        success: false,
+        error: 'No active AI configuration found. Please configure and enable AI first.'
+      }, 400);
+    }
+
+    // Build translation prompt
+    const targetLanguage = getLanguageName(targetLang || 'zh-CN');
+    const prompt = `Please translate the following text into ${targetLanguage}. Only output the translated text without any explanations or additional content.
+
+Text to translate:
+${content}`;
+
+    const messages = [{ role: 'user', content: prompt }];
+    const result = await executeChatRequest(config, messages, false);
+
+    return c.json({ success: true, translation: result.content || '' });
+  } catch (error) {
+    console.error('Error translating content:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+/**
+ * POST /api/ai/summarize
+ * Summarize content using AI
+ */
+ai.post('/summarize', async (c) => {
+  try {
+    const body = await c.req.json();
+    const { config: requestConfig, content, targetLang, provider } = body;
+
+    if (!content) {
+      return c.json({ success: false, error: 'Content is required' }, 400);
+    }
+
+    // Get configuration
+    let config = await getAIConfig(requestConfig, provider);
+
+    if (!config || !config.api_key_encrypted) {
+      return c.json({
+        success: false,
+        error: 'No active AI configuration found. Please configure and enable AI first.'
+      }, 400);
+    }
+
+    // Build summary prompt
+    const targetLanguage = getLanguageName(targetLang || 'zh-CN');
+    const prompt = `Please summarize the following content in ${targetLanguage}. Keep the summary concise and capture the main points. Only output the summary without any explanations.
+
+Content to summarize:
+${content}`;
+
+    const messages = [{ role: 'user', content: prompt }];
+    const result = await executeChatRequest(config, messages, false);
+
+    return c.json({ success: true, summary: result.content || '' });
+  } catch (error) {
+    console.error('Error summarizing content:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+/**
+ * Helper function to get AI configuration
+ */
+async function getAIConfig(requestConfig, provider) {
+  if (requestConfig && requestConfig.provider) {
+    const preset = getProviderPreset(requestConfig.provider);
+    if (!preset) {
+      throw new Error(`Unknown provider: ${requestConfig.provider}`);
+    }
+    return {
+      provider: requestConfig.provider,
+      api_url: requestConfig.apiUrl || preset.apiUrl,
+      api_key_encrypted: requestConfig.apiKey ? encrypt(requestConfig.apiKey) : null,
+      model: requestConfig.model || preset.defaultModel
+    };
+  } else if (provider) {
+    const config = db.prepare(`
+      SELECT provider, api_url, api_key_encrypted, model
+      FROM ai_config
+      WHERE provider = ? AND is_active = 1
+    `).get(provider);
+    return config;
+  } else {
+    const config = db.prepare(`
+      SELECT provider, api_url, api_key_encrypted, model
+      FROM ai_config
+      WHERE is_active = 1
+      LIMIT 1
+    `).get();
+    return config;
+  }
+}
+
+/**
+ * Helper function to execute chat request and return content
+ */
+async function executeChatRequest(config, messages, stream = false) {
+  const chunks = [];
+  const mockController = {
+    enqueue: (data) => {
+      const decoder = new TextDecoder();
+      const text = decoder.decode(data);
+      chunks.push(text);
+    }
+  };
+
+  await proxyChatRequest(
+    config,
+    { model: config.model, messages, stream: false, max_tokens: 4096 },
+    mockController
+  );
+
+  // Parse the response
+  const allChunks = chunks.join('');
+  const dataMatch = allChunks.match(/data: ({.*?})\n\n/);
+
+  if (dataMatch) {
+    const response = JSON.parse(dataMatch[1]);
+    const content = response.choices?.[0]?.delta?.content ||
+                   response.choices?.[0]?.message?.content ||
+                   response.content || '';
+    return { content: content.trim() };
+  }
+
+  return { content: '' };
+}
+
+/**
+ * POST /api/ai/translate/title
+ * Translate a single title using AI
+ */
+ai.post('/translate/title', async (c) => {
+  try {
+    const body = await c.req.json();
+    const { config: requestConfig, title, targetLang, provider } = body;
+
+    if (!title) {
+      return c.json({ success: false, error: 'Title is required' }, 400);
+    }
+
+    // Get configuration
+    let config = await getAIConfig(requestConfig, provider);
+
+    if (!config || !config.api_key_encrypted) {
+      return c.json({
+        success: false,
+        error: 'No active AI configuration found. Please configure and enable AI first.'
+      }, 400);
+    }
+
+    // Build translation prompt
+    const targetLanguage = getLanguageName(targetLang || 'zh-CN');
+    const prompt = `Please translate the following title into ${targetLanguage}. Only output the translated title without any explanations or additional content.
+
+Title to translate:
+${title}`;
+
+    const messages = [{ role: 'user', content: prompt }];
+    const result = await executeChatRequest(config, messages, false);
+
+    return c.json({ success: true, translation: result.content || '' });
+  } catch (error) {
+    console.error('Error translating title:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+/**
+ * Helper function to get language name from code
+ */
+function getLanguageName(langCode) {
+  const languages = {
+    'zh-CN': 'Simplified Chinese',
+    'zh-TW': 'Traditional Chinese',
+    'en': 'English',
+    'ja': 'Japanese',
+    'ko': 'Korean',
+    'fr': 'French',
+    'de': 'German',
+    'es': 'Spanish',
+    'pt': 'Portuguese',
+    'ru': 'Russian',
+    'ar': 'Arabic'
+  };
+  return languages[langCode] || langCode;
+}
+
+/**
  * POST /api/ai/chat
  * Proxy chat request to AI provider with streaming support
  */
 ai.post('/chat', async (c) => {
   try {
     const body = await c.req.json();
-    const { provider, messages, model, stream = true, ...extraParams } = body;
+    const { provider, messages, model, stream = true, config: requestConfig, ...extraParams } = body;
 
     // Validate required fields
-    if (!provider) {
-      return c.json({ success: false, error: 'Provider is required' }, 400);
-    }
-
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return c.json({ success: false, error: 'Messages are required' }, 400);
     }
 
-    // Get configuration from database
-    const config = db.prepare(`
-      SELECT provider, api_url, api_key_encrypted, model
-      FROM ai_config
-      WHERE provider = ?
-    `).get(provider);
+    // Get configuration - either from request config or database
+    let config;
+    if (requestConfig && requestConfig.provider) {
+      // Use config from request (frontend sends this format)
+      const preset = getProviderPreset(requestConfig.provider);
+      if (!preset) {
+        return c.json({ success: false, error: `Unknown provider: ${requestConfig.provider}` }, 400);
+      }
+      config = {
+        provider: requestConfig.provider,
+        api_url: requestConfig.apiUrl || preset.apiUrl,
+        api_key_encrypted: requestConfig.apiKey ? encrypt(requestConfig.apiKey) : null,
+        model: requestConfig.model || preset.defaultModel
+      };
+    } else if (provider) {
+      // Get configuration from database by provider
+      config = db.prepare(`
+        SELECT provider, api_url, api_key_encrypted, model
+        FROM ai_config
+        WHERE provider = ? AND is_active = 1
+      `).get(provider);
+    } else {
+      // Get active configuration from database
+      config = db.prepare(`
+        SELECT provider, api_url, api_key_encrypted, model
+        FROM ai_config
+        WHERE is_active = 1
+        LIMIT 1
+      `).get();
+    }
 
     if (!config || !config.api_key_encrypted) {
       return c.json({
         success: false,
-        error: 'No configuration found for this provider. Please configure the provider first.'
+        error: 'No active AI configuration found. Please configure and enable AI first.'
       }, 400);
     }
 

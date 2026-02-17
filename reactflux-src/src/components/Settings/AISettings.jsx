@@ -13,14 +13,15 @@ import {
   Spin,
   Switch,
   Typography,
+  Alert,
 } from "@arco-design/web-react"
-import { IconCheck, IconClose, IconLoading, IconSend } from "@arco-design/web-react/icon"
+import { IconCheck, IconClose, IconLoading, IconSend, IconSave } from "@arco-design/web-react/icon"
 import { useStore } from "@nanostores/react"
 import { useState, useEffect, useCallback } from "react"
 
 import SettingItem from "./SettingItem"
 
-import { AI_PROVIDERS, getDefaultUrl, getProviderById } from "@/constants/ai-providers"
+import { AI_PROVIDERS, getDefaultUrl } from "@/constants/ai-providers"
 import { AI_LANGUAGES, DEFAULT_TARGET_LANGUAGE } from "@/constants/ai-languages"
 import { polyglotState } from "@/hooks/useLanguage"
 import { categoriesState } from "@/store/dataState"
@@ -36,10 +37,10 @@ import {
   digestConfigState,
   updateDigestConfig,
 } from "@/store/digestState"
-import { testConnection } from "@/services/ai-service"
+import { testConnection, saveConfig } from "@/services/ai-service"
 import { WEBHOOK_TEMPLATES } from "@/services/digest-service"
 
-const { Title } = Typography
+const { Title, Text } = Typography
 const CollapseItem = Collapse.Item
 
 const AISettings = () => {
@@ -55,23 +56,21 @@ const AISettings = () => {
   const [testStatus, setTestStatus] = useState(null) // null, 'loading', 'success', 'error'
   const [testMessage, setTestMessage] = useState("")
   const [testWebhookStatus, setTestWebhookStatus] = useState(null)
+  const [saveStatus, setSaveStatus] = useState(null) // null, 'loading', 'success', 'error'
+  const [saveMessage, setSaveMessage] = useState("")
 
   // Sync local API key with store
   useEffect(() => {
     setLocalApiKey(apiKey)
   }, [apiKey])
 
-  // Get current provider config
-  const currentProvider = getProviderById(config.provider)
-
   // Handle provider change
   const handleProviderChange = (value) => {
-    const provider = getProviderById(value)
     const defaultUrl = getDefaultUrl(value)
     updateAIConfig({
       provider: value,
       apiUrl: defaultUrl,
-      model: provider?.models?.[0] || "",
+      // Don't auto-fill model - user must enter it manually
     })
   }
 
@@ -139,6 +138,37 @@ const AISettings = () => {
   const handleTitleTranslationGroupChange = (checkedIds) => {
     updateAIConfig({ titleTranslationGroupIds: checkedIds })
   }
+
+  // ============================================
+  // Save Configuration
+  // ============================================
+  const handleSaveConfig = useCallback(async () => {
+    if (!config.provider || !config.model || !localApiKey) {
+      Message.warning(polyglot.t("ai.fill_required_fields"))
+      return
+    }
+
+    setSaveStatus("loading")
+    setSaveMessage("")
+
+    try {
+      const configToSave = {
+        ...config,
+        apiKey: localApiKey,
+        isActive: true,
+      }
+      await saveConfig(configToSave)
+      setAIApiKey(localApiKey)
+      updateAIConfig({ hasStoredApiKey: true })
+      setSaveStatus("success")
+      setSaveMessage(polyglot.t("ai.save_success"))
+      Message.success(polyglot.t("ai.save_success"))
+    } catch (error) {
+      setSaveStatus("error")
+      setSaveMessage(error.message || polyglot.t("ai.save_failed"))
+      Message.error(error.message || polyglot.t("ai.save_failed"))
+    }
+  }, [config, localApiKey, polyglot])
 
   // ============================================
   // Digest/Webhook Configuration Handlers
@@ -230,8 +260,9 @@ const AISettings = () => {
       Message.success(polyglot.t("ai.connection_success"))
     } catch (error) {
       setTestStatus("error")
-      setTestMessage(error.message || polyglot.t("ai.connection_failed"))
-      Message.error(error.message || polyglot.t("ai.connection_failed"))
+      const errorMsg = error.message || polyglot.t("ai.connection_failed")
+      setTestMessage(errorMsg)
+      Message.error(errorMsg)
     }
   }, [config, localApiKey, polyglot])
 
@@ -267,6 +298,34 @@ const AISettings = () => {
       </Button>
     )
   }
+
+  // Render save button status
+  const renderSaveButton = () => {
+    if (saveStatus === "loading") {
+      return (
+        <Button type="primary" loading>
+          {polyglot.t("ai.saving")}
+        </Button>
+      )
+    }
+
+    if (saveStatus === "success") {
+      return (
+        <Button type="primary" status="success" icon={<IconCheck />}>
+          {polyglot.t("ai.saved")}
+        </Button>
+      )
+    }
+
+    return (
+      <Button type="primary" icon={<IconSave />} onClick={handleSaveConfig}>
+        {polyglot.t("ai.save")}
+      </Button>
+    )
+  }
+
+  // Check if basic config is filled
+  const hasBasicConfig = config.provider && config.model && (localApiKey || config.hasStoredApiKey)
 
   return (
     <div className="ai-settings">
@@ -334,68 +393,20 @@ const AISettings = () => {
             />
           </SettingItem>
 
-          {currentProvider?.models && (
-            <>
-              <Divider />
+          <Divider />
 
-              <SettingItem
-                title={polyglot.t("ai.model")}
-                description={polyglot.t("ai.model_description")}
-              >
-                <Select
-                  className="input-select"
-                  placeholder={polyglot.t("ai.select_model")}
-                  value={config.model}
-                  onChange={handleModelChange}
-                  style={{ width: 200 }}
-                >
-                  {currentProvider.models.map((model) => (
-                    <Select.Option key={model} value={model}>
-                      {model}
-                    </Select.Option>
-                  ))}
-                </Select>
-              </SettingItem>
-            </>
-          )}
-
-          {!currentProvider?.models && config.provider === "custom" && (
-            <>
-              <Divider />
-
-              <SettingItem
-                title={polyglot.t("ai.model")}
-                description={polyglot.t("ai.model_custom_description")}
-              >
-                <Input
-                  className="input-select"
-                  placeholder={polyglot.t("ai.model_placeholder")}
-                  value={config.model}
-                  onChange={(value) => updateAIConfig({ model: value })}
-                  style={{ width: 200 }}
-                />
-              </SettingItem>
-            </>
-          )}
-
-          {!currentProvider?.models && config.provider === "openrouter" && (
-            <>
-              <Divider />
-
-              <SettingItem
-                title={polyglot.t("ai.model")}
-                description={polyglot.t("ai.model_openrouter_description")}
-              >
-                <Input
-                  className="input-select"
-                  placeholder="openai/gpt-4o"
-                  value={config.model}
-                  onChange={(value) => updateAIConfig({ model: value })}
-                  style={{ width: 250 }}
-                />
-              </SettingItem>
-            </>
-          )}
+          <SettingItem
+            title={polyglot.t("ai.model")}
+            description={polyglot.t("ai.model_description")}
+          >
+            <Input
+              className="input-select"
+              placeholder={polyglot.t("ai.model_placeholder")}
+              value={config.model || ""}
+              onChange={handleModelChange}
+              style={{ width: 300 }}
+            />
+          </SettingItem>
 
           <Divider />
 
@@ -403,7 +414,18 @@ const AISettings = () => {
             title={polyglot.t("ai.test_connection")}
             description={polyglot.t("ai.test_connection_description")}
           >
-            <Space>{renderTestButton()}</Space>
+            <Space direction="vertical">
+              <Space>
+                {renderTestButton()}
+                {renderSaveButton()}
+              </Space>
+              {testStatus === "error" && testMessage && (
+                <Alert type="error" content={testMessage} style={{ marginTop: 8 }} />
+              )}
+              {saveStatus === "error" && saveMessage && (
+                <Alert type="error" content={saveMessage} style={{ marginTop: 8 }} />
+              )}
+            </Space>
           </SettingItem>
         </>
       )}
@@ -692,12 +714,17 @@ const AISettings = () => {
       <Divider />
 
       <div style={{ marginTop: 16, color: "var(--color-text-3)", fontSize: 12 }}>
-        {polyglot.t("ai.status")}:{" "}
-        {isConfigured ? (
-          <span style={{ color: "rgb(var(--success-6))" }}>{polyglot.t("ai.configured")}</span>
-        ) : (
-          <span style={{ color: "rgb(var(--warning-6))" }}>{polyglot.t("ai.not_configured")}</span>
-        )}
+        <Space>
+          <Text type="secondary">{polyglot.t("ai.status")}:</Text>
+          {hasBasicConfig ? (
+            <span style={{ color: "rgb(var(--success-6))" }}>{polyglot.t("ai.configured")}</span>
+          ) : (
+            <span style={{ color: "rgb(var(--warning-6))" }}>{polyglot.t("ai.not_configured")}</span>
+          )}
+          {hasBasicConfig && !config.enabled && (
+            <Text type="warning">({polyglot.t("ai.disabled")})</Text>
+          )}
+        </Space>
       </div>
     </div>
   )

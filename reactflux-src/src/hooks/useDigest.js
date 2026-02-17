@@ -39,6 +39,8 @@ import {
   updateDigestConfig,
 } from "@/store/digestState"
 
+import { authState } from "@/store/authState"
+
 import {
   getDigests,
   getDigest,
@@ -279,7 +281,35 @@ export function useDigest() {
 
       updateGenerationProgress(10, "fetching")
 
-      const response = await generateDigestApi(options)
+      // Get Miniflux credentials from authState
+      const auth = authState.get()
+      let minifluxApiKey = auth?.token || ""
+      // Support username/password login by sending Basic credentials as base64.
+      if (!minifluxApiKey && auth?.username && auth?.password) {
+        try {
+          minifluxApiKey = globalThis.btoa(`${auth.username}:${auth.password}`)
+        } catch {
+          // Fallback for non-ASCII credentials
+          minifluxApiKey = globalThis.btoa(
+            unescape(encodeURIComponent(`${auth.username}:${auth.password}`)),
+          )
+        }
+      }
+      const minifluxCredentials =
+        auth?.server && minifluxApiKey
+          ? {
+              minifluxApiUrl: auth.server,
+              minifluxApiKey,
+            }
+          : null
+
+      // Merge credentials with options
+      const optionsWithCredentials = {
+        ...options,
+        ...(minifluxCredentials || {}),
+      }
+
+      const response = await generateDigestApi(optionsWithCredentials)
 
       if (response.success) {
         updateGenerationProgress(100, "completed")
@@ -528,6 +558,7 @@ export function useDigest() {
     loadDigests,
     loadDigest,
     saveDigest,
+    setCurrentDigest,
     updateDigest: updateDigestItem,
     deleteDigest: deleteDigestItem,
     markAsRead,

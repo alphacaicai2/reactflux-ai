@@ -97,14 +97,31 @@ export const loadConfig = async () => {
     clearAIError()
 
     const response = await aiClient.get("/config")
+    const backendConfigs = Array.isArray(response?.data) ? response.data : []
+    const activeConfig =
+      backendConfigs.find((config) => config?.is_active === 1 || config?.isActive) || backendConfigs[0]
 
-    // Update local state with loaded config (without API key for security)
-    if (response.config) {
-      const { apiKey: _, ...safeConfig } = response.config
-      aiConfigState.set(safeConfig)
+    if (!activeConfig) {
+      return {}
     }
 
-    return response.config || {}
+    const currentConfig = aiConfigState.get()
+    const mappedConfig = {
+      ...currentConfig,
+      enabled:
+        activeConfig?.is_active !== undefined
+          ? Boolean(activeConfig.is_active)
+          : activeConfig?.isActive !== undefined
+            ? Boolean(activeConfig.isActive)
+            : currentConfig.enabled,
+      provider: activeConfig?.provider || currentConfig.provider,
+      apiUrl: activeConfig?.api_url || activeConfig?.apiUrl || currentConfig.apiUrl,
+      model: activeConfig?.model || currentConfig.model,
+      hasStoredApiKey: Boolean(activeConfig?.apiKey),
+    }
+
+    aiConfigState.set(mappedConfig)
+    return mappedConfig
   } catch (error) {
     setAIError(error.message)
     throw error
@@ -141,6 +158,18 @@ export const getConfig = () => {
   const config = aiConfigState.get()
   const apiKey = aiApiKeyState.get()
   return { ...config, apiKey }
+}
+
+const buildAIRequestPayload = (config) => {
+  if (config?.apiKey) {
+    return { config }
+  }
+
+  if (config?.provider) {
+    return { provider: config.provider }
+  }
+
+  return {}
 }
 
 /**
@@ -217,8 +246,9 @@ export const chat = async (messages, onChunk, signal) => {
     }
 
     // Otherwise use regular API
+    const requestPayload = buildAIRequestPayload(config)
     const response = await aiClient.post("/chat", {
-      config,
+      ...requestPayload,
       messages,
       stream: false,
     })
@@ -244,13 +274,14 @@ export const chat = async (messages, onChunk, signal) => {
  * @returns {Promise<string>} Full response
  */
 const streamChat = async (config, messages, onChunk, signal) => {
+  const requestPayload = buildAIRequestPayload(config)
   const response = await fetch(`${AI_API_BASE_URL}/chat`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      config,
+      ...requestPayload,
       messages,
       stream: true,
     }),
@@ -325,8 +356,9 @@ export const translate = async (content, targetLang, onChunk, signal) => {
       return await streamChat(config, messages, onChunk, signal)
     }
 
+    const requestPayload = buildAIRequestPayload(config)
     const response = await aiClient.post("/translate", {
-      config,
+      ...requestPayload,
       content,
       targetLang,
       stream: false,
@@ -374,8 +406,9 @@ export const summarize = async (content, targetLang, onChunk, signal) => {
       return await streamChat(config, messages, onChunk, signal)
     }
 
+    const requestPayload = buildAIRequestPayload(config)
     const response = await aiClient.post("/summarize", {
-      config,
+      ...requestPayload,
       content,
       targetLang,
       stream: false,
@@ -417,8 +450,9 @@ export const translateTitle = async (title, targetLang) => {
 
     const messages = [{ role: "user", content: prompt }]
 
+    const requestPayload = buildAIRequestPayload(config)
     const response = await aiClient.post("/translate/title", {
-      config,
+      ...requestPayload,
       title,
       targetLang,
       stream: false,

@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import db from '../db/index.js';
-import { decrypt } from '../utils/encryption.js';
+import { decrypt, encrypt, maskApiKey } from '../utils/encryption.js';
 import { DigestService } from '../services/digest-service.js';
 import { PushService } from '../services/push-service.js';
 import { SchedulerService } from '../services/scheduler.js';
@@ -38,6 +38,130 @@ function getMinifluxConfig() {
     apiKeyEncrypted: config.api_key_encrypted
   };
 }
+
+// ============================================
+// Miniflux 配置路由
+// ============================================
+
+/**
+ * GET /api/digests/miniflux/config
+ * 获取 Miniflux 配置（API Key 已遮罩）
+ */
+digest.get('/miniflux/config', (c) => {
+  try {
+    const config = db.prepare('SELECT id, name, api_url, api_key_encrypted, is_active, created_at, updated_at FROM miniflux_config WHERE is_active = 1 LIMIT 1').get();
+
+    if (!config) {
+      return c.json({
+        success: true,
+        data: {
+          apiUrl: '',
+          apiKey: null,
+          isActive: false
+        }
+      });
+    }
+
+    return c.json({
+      success: true,
+      data: {
+        id: config.id,
+        name: config.name,
+        apiUrl: config.api_url,
+        apiKey: maskApiKey(config.api_key_encrypted),
+        isActive: !!config.is_active
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching Miniflux config:', error);
+    return c.json({ success: false, error: 'Failed to fetch Miniflux configuration' }, 500);
+  }
+});
+
+/**
+ * POST /api/digests/miniflux/config
+ * 保存 Miniflux 配置（API Key 加密存储）
+ */
+digest.post('/miniflux/config', async (c) => {
+  try {
+    const body = await c.req.json();
+    const { apiUrl, apiKey, name = 'default' } = body;
+
+    if (!apiUrl) {
+      return c.json({ success: false, error: 'API URL is required' }, 400);
+    }
+
+    // Encrypt API key if provided
+    const apiKeyEncrypted = apiKey ? encrypt(apiKey) : null;
+
+    // Upsert configuration
+    const stmt = db.prepare(`
+      INSERT INTO miniflux_config (name, api_url, api_key_encrypted, is_active, updated_at)
+      VALUES (?, ?, ?, 1, CURRENT_TIMESTAMP)
+      ON CONFLICT(name) DO UPDATE SET
+        api_url = excluded.api_url,
+        api_key_encrypted = COALESCE(excluded.api_key_encrypted, api_key_encrypted),
+        is_active = 1,
+        updated_at = CURRENT_TIMESTAMP
+    `);
+
+    stmt.run(name, apiUrl, apiKeyEncrypted);
+
+    return c.json({
+      success: true,
+      data: {
+        name,
+        apiUrl,
+        apiKey: maskApiKey(apiKeyEncrypted),
+        isActive: true
+      }
+    });
+  } catch (error) {
+    console.error('Error saving Miniflux config:', error);
+    return c.json({ success: false, error: 'Failed to save Miniflux configuration' }, 500);
+  }
+});
+
+/**
+ * POST /api/digests/miniflux/test
+ * 测试 Miniflux 连接
+ */
+digest.post('/miniflux/test', async (c) => {
+  try {
+    const body = await c.req.json();
+    const { apiUrl, apiKey } = body;
+
+    if (!apiUrl || !apiKey) {
+      return c.json({ success: false, error: 'API URL and API Key are required' }, 400);
+    }
+
+    // Test connection by fetching feeds
+    const baseUrl = apiUrl.replace(/\/$/, '');
+    const response = await fetch(`${baseUrl}/v1/feeds`, {
+      headers: {
+        'X-Auth-Token': apiKey
+      }
+    });
+
+    if (response.ok) {
+      const feeds = await response.json();
+      return c.json({
+        success: true,
+        message: 'Connection successful',
+        feedCount: Array.isArray(feeds) ? feeds.length : 0
+      });
+    } else {
+      const errorText = await response.text();
+      return c.json({
+        success: false,
+        error: `Connection failed: HTTP ${response.status} - ${errorText}`
+      });
+    }
+  } catch (error) {
+    console.error('Miniflux connection test error:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
 
 // ============================================
 // 简报相关路由
@@ -246,10 +370,13 @@ digest.post('/generate', async (c) => {
       prompt: customPrompt,
       unreadOnly = true,
       pushConfig,
-      timezone
+      timezone,
+      // Allow passing Miniflux credentials from frontend
+      minifluxApiUrl,
+      minifluxApiKey
     } = body;
 
-    // 获取配置
+    // 获取 AI 配置
     const aiConfig = getAIConfig();
     if (!aiConfig || !aiConfig.apiKey) {
       return c.json({
@@ -258,7 +385,20 @@ digest.post('/generate', async (c) => {
       }, 400);
     }
 
-    const minifluxConfig = getMinifluxConfig();
+    // 获取 Miniflux 配置 - 优先使用请求中的凭证，否则从数据库获取
+    let minifluxConfig = null;
+
+    if (minifluxApiUrl && minifluxApiKey) {
+      // 使用请求中提供的 Miniflux 凭证
+      minifluxConfig = {
+        apiUrl: minifluxApiUrl,
+        apiKey: minifluxApiKey
+      };
+    } else {
+      // 从数据库获取配置
+      minifluxConfig = getMinifluxConfig();
+    }
+
     if (!minifluxConfig) {
       return c.json({
         success: false,

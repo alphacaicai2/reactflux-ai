@@ -18,8 +18,8 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Install runtime dependencies for sqlite
-RUN apk add --no-cache sqlite-libs
+# Install runtime dependencies for sqlite and wget for health check
+RUN apk add --no-cache sqlite-libs wget
 
 # Copy node_modules from builder (with compiled native modules)
 COPY --from=builder /app/node_modules ./node_modules

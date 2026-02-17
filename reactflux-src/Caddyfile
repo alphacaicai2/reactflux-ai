@@ -2,20 +2,17 @@
 
 root * /srv
 
-# 代理 AI API 到后端服务
-handle /api/ai/* {
-    uri strip_prefix /api/ai
+# API 代理 - 优先匹配
+handle /api/ai* {
     reverse_proxy reactflux-ai-backend:3001
 }
 
-# 代理简报 API 到后端服务
-handle /api/digests/* {
-    uri strip_prefix /api/digests
-    reverse_proxy reactflux-ai-backend:3001/digests
+handle /api/digests* {
+    reverse_proxy reactflux-ai-backend:3001
 }
 
-# 处理 SPA 路由
-try_files {path} {path}/ /index.html
-
-# Enable the static file server.
-file_server
+# 静态文件和 SPA 路由
+handle {
+    try_files {path} {path}/ /index.html
+    file_server
+}

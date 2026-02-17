@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  # 前端（使用预构建文件）
+  reactflux-ai-frontend:
+    build:
+      context: ./reactflux-src
+      dockerfile: Dockerfile
+    container_name: reactflux-ai-frontend
+    ports:
+      - "2001:2000"
+    depends_on:
+      reactflux-ai-backend:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - reactflux-ai-network
+
+  # 后端
+  reactflux-ai-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: reactflux-ai-backend
+    ports:
+      - "3011:3001"
+    volumes:
+      - reactflux-ai-data:/app/data
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - DB_PATH=/app/data/reactflux.db
+      - CORS_ORIGIN=*
+      - ENCRYPTION_SECRET=change-this-in-production
+      - ENCRYPTION_SALT=change-this-in-production
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - reactflux-ai-network
+
+volumes:
+  reactflux-ai-data:
+    driver: local
+
+networks:
+  reactflux-ai-network:
+    driver: bridge
