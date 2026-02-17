@@ -1,0 +1,104 @@
+.app {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  grid-template-areas: "sidebar main";
+  background-color: var(--color-neutral-2);
+  height: 100%;
+}
+
+.arco-btn-secondary:not(.arco-btn-disabled):has(svg) {
+  background-color: transparent;
+}
+
+.arco-layout-sider-light {
+  box-shadow: none !important;
+}
+
+.arco-menu-collapse {
+  width: 0 !important;
+}
+
+.arco-menu-collapse-button {
+  display: none;
+}
+
+.arco-pagination {
+  display: flex;
+  justify-content: space-between;
+  width: 90%;
+}
+
+.simplebar-scrollbar::before {
+  transition-delay: 1s;
+  background-color: #959595;
+  min-height: 30px;
+}
+
+@media screen and (display-mode: fullscreen) {
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    min-height: 100vh;
+    background-color: var(--color-bg-1);
+  }
+
+  .app {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    grid-template-areas: "sidebar main";
+    border-radius: var(--border-radius-medium);
+    height: 100%;
+    overflow: hidden;
+  }
+}
+
+@supports (padding-top: env(safe-area-inset-top)) {
+  @media screen and (display-mode: fullscreen) {
+    .app {
+      padding-right: env(safe-area-inset-right);
+      padding-left: env(safe-area-inset-left);
+    }
+
+    .arco-menu-light {
+      padding-top: max(env(safe-area-inset-top), 20px);
+      padding-left: env(safe-area-inset-left);
+    }
+
+    /* .main {
+      padding-top: max(env(safe-area-inset-top), 20px);
+    } */
+  }
+}
+
+@media screen and (max-width: 992px) {
+  .app {
+    grid-template-columns: 0 1fr;
+    grid-template-areas: "sidebar main";
+    height: 100%;
+  }
+
+  .arco-menu-collapse-button {
+    display: flex !important;
+    top: 12px;
+  }
+  .trigger {
+    display: block !important;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .background {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+  }
+  .page-layout {
+    display: block !important;
+  }
+  .sidebar-drawer {
+    width: 80% !important;
+  }
+}

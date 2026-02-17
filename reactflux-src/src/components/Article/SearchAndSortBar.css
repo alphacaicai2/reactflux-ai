@@ -1,0 +1,70 @@
+.search-and-sort-bar {
+  display: flex;
+  position: sticky;
+  top: 0;
+  align-items: center;
+  z-index: 2;
+  background-color: rgb(var(--color-bg-1));
+  padding: 8px 0;
+}
+
+.search-and-sort-bar .page-info {
+  display: flex;
+  align-items: center;
+  margin-left: 12px;
+  color: var(--color-text-2);
+  white-space: nowrap;
+  overflow: hidden;
+  flex: 1;
+}
+
+.search-and-sort-bar .page-info .title-container {
+  overflow: hidden;
+}
+
+.search-and-sort-bar .page-info .title-container .arco-typography {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-and-sort-bar .page-info .count-label {
+  color: var(--color-text-4);
+  margin-left: 6px;
+  flex: 0 0 auto;
+  font-weight: 500;
+  display: inline-block;
+}
+
+.search-and-sort-bar .button-group {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+  margin: 0 8px;
+}
+
+.search-and-sort-bar .button-group button {
+  background-color: transparent;
+}
+
+.calendar-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  color: var(--color-text-1);
+}
+
+.search-modal {
+  width: 400px;
+}
+
+.arco-input-group-addbefore .arco-select .arco-select-view {
+  border-radius: var(--border-radius-medium);
+}
+
+@media screen and (max-width: 768px) {
+  .search-modal {
+    width: 95%;
+  }
+}

@@ -1,0 +1,155 @@
+.digest-detail {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.digest-detail-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 16px;
+}
+
+.digest-detail-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 20px;
+}
+
+.digest-detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+.digest-detail-content {
+  flex: 1;
+  overflow: auto;
+  margin: 16px;
+}
+
+.digest-detail-meta {
+  margin: 12px 0;
+}
+
+/* Markdown content styles for detail view */
+.digest-detail-content .digest-content {
+  font-size: 15px;
+  line-height: 1.8;
+  max-width: 100%;
+}
+
+.digest-detail-content .digest-content h1 {
+  font-size: 22px;
+  margin-top: 24px;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.digest-detail-content .digest-content h2 {
+  font-size: 20px;
+  margin-top: 20px;
+  margin-bottom: 10px;
+}
+
+.digest-detail-content .digest-content h3 {
+  font-size: 18px;
+  margin-top: 16px;
+  margin-bottom: 8px;
+}
+
+.digest-detail-content .digest-content p {
+  margin-bottom: 12px;
+}
+
+.digest-detail-content .digest-content strong {
+  font-weight: 600;
+  color: var(--color-text-1);
+}
+
+.digest-detail-content .digest-content em {
+  font-style: italic;
+}
+
+.digest-detail-content .digest-content a {
+  color: rgb(var(--primary-6));
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.2s;
+}
+
+.digest-detail-content .digest-content a:hover {
+  border-bottom-color: rgb(var(--primary-6));
+}
+
+.digest-detail-content .digest-content ul,
+.digest-detail-content .digest-content ol {
+  margin-left: 24px;
+  margin-bottom: 12px;
+}
+
+.digest-detail-content .digest-content li {
+  margin-bottom: 6px;
+  list-style-position: outside;
+}
+
+.digest-detail-content .digest-content blockquote {
+  margin: 16px 0;
+  padding: 12px 16px;
+  background: var(--color-fill-1);
+  border-left: 4px solid rgb(var(--primary-6));
+  border-radius: 4px;
+}
+
+.digest-detail-content .digest-content code {
+  background: var(--color-fill-2);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: "SF Mono", Monaco, Consolas, monospace;
+  font-size: 13px;
+}
+
+.digest-detail-content .digest-content pre {
+  background: var(--color-fill-2);
+  padding: 16px;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 16px 0;
+}
+
+.digest-detail-content .digest-content pre code {
+  background: none;
+  padding: 0;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .digest-detail-header {
+    padding: 8px 12px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .digest-detail-header .arco-space {
+    flex-wrap: wrap;
+  }
+
+  .digest-detail-content {
+    margin: 12px;
+  }
+
+  .digest-detail-content .digest-content {
+    font-size: 14px;
+  }
+}

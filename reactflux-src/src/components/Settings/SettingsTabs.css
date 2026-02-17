@@ -1,0 +1,9 @@
+.custom-tabs .arco-tabs-header {
+  margin: 0 auto !important;
+}
+
+.input-select,
+.input-slider {
+  margin-left: 16px;
+  width: 130px;
+}

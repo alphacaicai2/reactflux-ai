@@ -1,0 +1,86 @@
+{
+  "name": "reactflux",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "pnpm run build && vite preview",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint",
+    "lint:fix": "eslint --fix",
+    "prepare": "simple-git-hooks",
+    "prebuild": "node src/scripts/version-info.js",
+    "update-fonts": "node scripts/update-fonts.js"
+  },
+  "dependencies": {
+    "@arco-design/color": "^0.4.0",
+    "@arco-design/web-react": "^2.66.10",
+    "@nanostores/persistent": "^1.3.3",
+    "@nanostores/react": "^1.0.0",
+    "canvas-confetti": "^1.9.4",
+    "classnames": "^2.5.1",
+    "dayjs": "^1.11.19",
+    "framer-motion": "^12.29.2",
+    "highlight.js": "^11.11.1",
+    "hls.js": "^1.6.15",
+    "html-react-parser": "^5.2.17",
+    "littlefoot": "^4.1.3",
+    "lodash-es": "^4.17.23",
+    "nanostores": "^1.1.0",
+    "node-polyglot": "^2.6.0",
+    "ofetch": "^1.5.1",
+    "plyr": "^3.8.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-hotkeys-hook": "^5.2.4",
+    "react-intersection-observer": "^10.0.2",
+    "react-router": "^7.13.0",
+    "react-swipeable": "^7.0.2",
+    "react-syntax-highlighter": "^16.1.0",
+    "simplebar-react": "^3.3.2",
+    "validator": "^13.15.26",
+    "virtua": "^0.48.5",
+    "yet-another-react-lightbox": "^3.28.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.2",
+    "@types/node": "^25.2.3",
+    "@types/react": "^18.3.27",
+    "@types/react-dom": "^18.3.6",
+    "@vitejs/plugin-react": "^5.1.4",
+    "babel-plugin-react-compiler": "19.1.0-rc.3",
+    "depcheck": "^1.4.7",
+    "eslint": "^9.39.2",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-import-x": "^4.16.1",
+    "eslint-plugin-promise": "^7.2.1",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-compiler": "19.1.0-rc.2",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-refresh": "^0.5.0",
+    "eslint-plugin-unicorn": "^63.0.0",
+    "globals": "^17.3.0",
+    "lint-staged": "^16.2.7",
+    "prettier": "^3.8.1",
+    "react-compiler-runtime": "19.1.0-rc.3",
+    "rollup-plugin-visualizer": "^6.0.5",
+    "simple-git-hooks": "2.13.1",
+    "vite": "^7.3.1",
+    "vite-plugin-pwa": "^1.2.0",
+    "workbox-window": "^7.4.0"
+  },
+  "simple-git-hooks": {
+    "pre-commit": "pnpm exec lint-staged"
+  },
+  "lint-staged": {
+    "*.{js,ts,mjs,jsx,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,jsonc,css,md}": [
+      "prettier --write"
+    ]
+  }
+}

@@ -1,0 +1,22 @@
+.code-block-container {
+  display: flex;
+  flex-direction: column;
+}
+
+.code-block-container code {
+  padding: 0 !important;
+}
+
+.code-block-header {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  background: inherit;
+  z-index: 1;
+  margin-bottom: -12px;
+}
+
+.language-selector {
+  width: auto;
+}

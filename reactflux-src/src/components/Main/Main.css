@@ -1,0 +1,35 @@
+.main {
+  display: flex;
+  grid-area: main;
+  transition:
+    padding-left 0.1s linear,
+    width 0.1s linear;
+  margin: 0;
+  border: none;
+  overflow: hidden;
+}
+
+.settings-modal {
+  top: 5%;
+  width: 720px;
+  overflow-y: auto;
+}
+
+@media screen and (max-width: 992px) {
+  .main {
+    margin: 0;
+    border: none;
+    padding-left: 0;
+    width: 100%;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .main {
+    padding-bottom: env(safe-area-inset-bottom) !important;
+  }
+  .settings-modal {
+    top: 8%;
+    width: 95%;
+  }
+}

@@ -1,0 +1,15 @@
+:2000
+
+root * /srv
+
+# 代理 AI API 到后端服务
+handle /api/ai/* {
+    uri strip_prefix /api/ai
+    reverse_proxy reactflux-ai:3001
+}
+
+# 处理 SPA 路由
+try_files {path} {path}/ /index.html
+
+# Enable the static file server.
+file_server

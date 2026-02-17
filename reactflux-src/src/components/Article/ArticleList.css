@@ -1,0 +1,24 @@
+.entry-list {
+  flex: 1;
+  contain: strict;
+  padding: 10px;
+  height: 100%;
+  overflow-x: hidden;
+  overscroll-behavior-y: contain;
+}
+
+.load-more-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 10px auto;
+  border-radius: var(--border-radius-medium);
+  background-color: var(--color-bg-2);
+  color: var(--color-text-2);
+}
+
+@media screen and (max-width: 768px) {
+  .entry-list {
+    width: calc(100% - 20px);
+  }
+}

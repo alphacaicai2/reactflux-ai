@@ -1,0 +1,35 @@
+.edit-modal {
+  width: 400px;
+}
+
+.feed-table {
+  width: 100%;
+}
+
+.feed-table .arco-checkbox-mask {
+  border-radius: 0 !important;
+}
+
+.feed-table-action-bar {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.feed-table-action-bar .button-group {
+  display: flex;
+  gap: 8px;
+  padding-bottom: 16px;
+  padding-left: 8px;
+}
+
+.search-input {
+  margin-bottom: 16px;
+  width: 300px;
+}
+
+@media screen and (max-width: 768px) {
+  .edit-modal {
+    width: 95%;
+  }
+}

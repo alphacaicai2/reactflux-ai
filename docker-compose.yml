@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  # ReactFlux 前端（AI 增强版）
+  reactflux:
+    build:
+      context: ./reactflux-src
+      dockerfile: Dockerfile
+      args:
+        - VITE_AI_API_BASE_URL=/api/ai
+    ports:
+      - "${FRONTEND_PORT:-2000}:2000"
+    depends_on:
+      reactflux-ai:
+        condition: service_healthy
+    environment:
+      - VITE_AI_API_BASE_URL=/api/ai
+    restart: unless-stopped
+    networks:
+      - reactflux-network
+
+  # AI 后端服务
+  reactflux-ai:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "${AI_BACKEND_PORT:-3001}:3001"
+    volumes:
+      - reactflux-ai-data:/app/data
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - DB_PATH=/app/data/reactflux.db
+      - CORS_ORIGIN=*
+      # Miniflux 配置（可选）
+      # - MINIFLUX_URL=${MINIFLUX_URL:-}
+      # - MINIFLUX_API_KEY=${MINIFLUX_API_KEY:-}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - reactflux-network
+
+volumes:
+  reactflux-ai-data:
+    driver: local
+
+networks:
+  reactflux-network:
+    driver: bridge
