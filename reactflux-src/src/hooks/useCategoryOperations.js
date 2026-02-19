@@ -1,8 +1,9 @@
 import { Message, Modal, Notification } from "@arco-design/web-react"
 
-import { addCategory, deleteCategory, updateCategory } from "@/apis/categories"
+import { addCategory, deleteCategory, getCategoryFeeds, updateCategory } from "@/apis/categories"
+import { deleteFeed } from "@/apis/feeds"
 import { polyglotState } from "@/hooks/useLanguage"
-import { setCategoriesData, setFeedsData } from "@/store/dataState"
+import { setCategoriesData, setFeedsData, setUnreadInfo } from "@/store/dataState"
 
 const useCategoryOperations = (useNotification = false) => {
   const { polyglot } = polyglotState.get()
@@ -74,10 +75,42 @@ const useCategoryOperations = (useNotification = false) => {
     }
   }
 
+  const removeUnreadInfoByFeedIds = (prevUnreadInfo, feedIdSet) =>
+    Object.fromEntries(
+      Object.entries(prevUnreadInfo).filter(([feedId]) => !feedIdSet.has(Number(feedId))),
+    )
+
   const deleteCategoryDirectly = async (category) => {
     try {
+      // 先获取分组内的所有订阅源
+      const feedsInCategory = await getCategoryFeeds(category.id)
+
+      // 并行删除所有订阅源
+      const feedDeletionResults = await Promise.allSettled(
+        feedsInCategory.map((feed) => deleteFeed(feed.id)),
+      )
+
+      // 检查是否有删除失败的订阅源
+      const failedFeedCount = feedDeletionResults.filter(
+        (result) => result.status === "rejected" || result.value?.status !== 204,
+      ).length
+
+      if (failedFeedCount > 0) {
+        throw new Error(`Failed to delete ${failedFeedCount} feeds in category ${category.id}`)
+      }
+
+      // 删除分组
       const response = await deleteCategory(category.id)
       if (response.status === 204) {
+        const deletedFeedIdSet = new Set(feedsInCategory.map((feed) => feed.id))
+
+        // 同步更新本地状态
+        setFeedsData((prevFeeds) =>
+          prevFeeds.filter((feed) => !deletedFeedIdSet.has(feed.id)),
+        )
+        setUnreadInfo((prevUnreadInfo) =>
+          removeUnreadInfoByFeedIds(prevUnreadInfo, deletedFeedIdSet),
+        )
         setCategoriesData((prevCategories) => prevCategories.filter((c) => c.id !== category.id))
 
         const successMessage = polyglot.t("category_list.remove_category_success", {
@@ -100,17 +133,23 @@ const useCategoryOperations = (useNotification = false) => {
   }
 
   const handleDeleteCategory = async (category, requireConfirmation = true) => {
-    if (requireConfirmation) {
+    if (!requireConfirmation) {
+      return deleteCategoryDirectly(category)
+    }
+
+    return new Promise((resolve) => {
       Modal.confirm({
         title: polyglot.t("sidebar.delete_category_confirm_title"),
         content: polyglot.t("sidebar.delete_category_confirm_content", {
           title: category.title,
         }),
-        onOk: () => deleteCategoryDirectly(category),
+        onOk: async () => {
+          const deleted = await deleteCategoryDirectly(category)
+          resolve(deleted)
+        },
+        onCancel: () => resolve(false),
       })
-    } else {
-      return deleteCategoryDirectly(category)
-    }
+    })
   }
 
   return {

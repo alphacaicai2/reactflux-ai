@@ -88,8 +88,6 @@ const CategoryTitle = ({
     setActiveContent(null)
   }
 
-  const canDelete = !feedsGroupedById[category.id] || feedsGroupedById[category.id].length === 0
-
   return (
     <Dropdown
       position="bl"
@@ -117,20 +115,16 @@ const CategoryTitle = ({
             </div>
           </MenuItem>
 
-          {canDelete && (
-            <>
-              <Divider style={{ margin: "4px 0" }} />
+          <Divider style={{ margin: "4px 0" }} />
 
-              <MenuItem key="delete-category" onClick={() => onDeleteCategory(category)}>
-                <div className="settings-menu-item">
-                  <span style={{ color: "var(--color-danger-light-4)" }}>
-                    {polyglot.t("sidebar.context_menu.delete_category")}
-                  </span>
-                  <IconDelete style={{ color: "var(--color-danger-light-4)" }} />
-                </div>
-              </MenuItem>
-            </>
-          )}
+          <MenuItem key="delete-category" onClick={() => onDeleteCategory(category)}>
+            <div className="settings-menu-item">
+              <span style={{ color: "var(--color-danger-light-4)" }}>
+                {polyglot.t("sidebar.context_menu.delete_category")}
+              </span>
+              <IconDelete style={{ color: "var(--color-danger-light-4)" }} />
+            </div>
+          </MenuItem>
         </Menu>
       }
     >
@@ -599,10 +593,12 @@ const Sidebar = () => {
   const [feedForm] = Form.useForm()
 
   const { refreshSingleFeed, handleDeleteFeed, markFeedAsRead } = useFeedOperations(true)
-  const { handleDeleteCategory } = useCategoryOperations(true)
+  const { handleDeleteCategory: deleteCategoryWithFeeds } = useCategoryOperations(true)
 
   const location = useLocation()
+  const navigate = useNavigate()
   const currentPath = location.pathname
+  const feedsGroupedById = useStore(feedsGroupedByIdState)
   const selectedKeys = useMemo(() => [currentPath], [currentPath])
 
   const { fetchCounters } = useAppData()
@@ -683,6 +679,31 @@ const Sidebar = () => {
 
   const handleMarkAllAsReadFeed = async (feed) => {
     await markFeedAsRead(feed)
+  }
+
+  const handleDeleteCategory = async (category) => {
+    const feedIdsInCategory = (feedsGroupedById[category.id] || []).map((feed) => feed.id)
+    const deleted = await deleteCategoryWithFeeds(category, true)
+
+    if (!deleted) {
+      return
+    }
+
+    // 检查是否正在查看被删除的分组或其中的订阅源
+    const isViewingDeletedCategory =
+      currentPath === `/category/${category.id}` ||
+      currentPath.startsWith(`/category/${category.id}/`)
+
+    const isViewingDeletedFeed = feedIdsInCategory.some((feedId) => {
+      const feedPath = `/feed/${feedId}`
+      return currentPath === feedPath || currentPath.startsWith(`${feedPath}/`)
+    })
+
+    // 如果当前页面被删除，自动跳转到 /all
+    if (isViewingDeletedCategory || isViewingDeletedFeed) {
+      navigate("/all")
+      setActiveContent(null)
+    }
   }
 
   return (
