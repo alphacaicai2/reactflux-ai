@@ -16,14 +16,14 @@ import {
 } from "@arco-design/web-react"
 import { IconCheck, IconClose, IconLoading, IconSend } from "@arco-design/web-react/icon"
 import { useStore } from "@nanostores/react"
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 
 import useDigest from "@/hooks/useDigest"
 import { polyglotState } from "@/hooks/useLanguage"
 import { categoriesState } from "@/store/dataState"
 import { isAIConfiguredState } from "@/store/aiState"
 import { digestConfigState } from "@/store/digestState"
-import { getDefaultPrompt, WEBHOOK_TEMPLATES } from "@/services/digest-service"
+import { getDefaultPrompt, previewDigest, WEBHOOK_TEMPLATES } from "@/services/digest-service"
 
 import DigestPreview from "./DigestPreview"
 
@@ -70,17 +70,61 @@ const DigestGenerateModal = ({ visible, onCancel, onGenerate }) => {
 
   const [form] = Form.useForm()
   const scope = Form.useWatch("scope", form) ?? "all"
+  const scopeId = Form.useWatch("scopeId", form)
+  const hours = Form.useWatch("hours", form) ?? 24
+  const unreadOnly = Form.useWatch("unreadOnly", form) ?? true
+
   const [isGenerating, setIsGenerating] = useState(false)
   const [isPushing, setIsPushing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [generatedDigest, setGeneratedDigest] = useState(null)
   const [showPushConfig, setShowPushConfig] = useState(false)
+  const [previewData, setPreviewData] = useState(null)
+  const previewDebounceRef = useRef(null)
+
+  // Debounced digest preview when scope, groupId, hours, or unreadOnly change
+  useEffect(() => {
+    if (!visible || generatedDigest) {
+      setPreviewData(null)
+      return
+    }
+    if (previewDebounceRef.current) {
+      clearTimeout(previewDebounceRef.current)
+    }
+    previewDebounceRef.current = setTimeout(async () => {
+      previewDebounceRef.current = null
+      try {
+        const options = {
+          scope,
+          hours,
+          unreadOnly,
+        }
+        if (scope === "group" && scopeId != null && scopeId !== "") {
+          options.groupId = Number(scopeId)
+        }
+        const res = await previewDigest(options)
+        if (res?.data) {
+          setPreviewData(res.data)
+        } else {
+          setPreviewData(null)
+        }
+      } catch {
+        setPreviewData(null)
+      }
+    }, 300)
+    return () => {
+      if (previewDebounceRef.current) {
+        clearTimeout(previewDebounceRef.current)
+      }
+    }
+  }, [visible, generatedDigest, scope, scopeId, hours, unreadOnly])
 
   // Reset state when modal opens
   useEffect(() => {
     if (visible) {
       resetGeneration()
       setGeneratedDigest(null)
+      setPreviewData(null)
       form.resetFields()
       form.setFieldsValue({
         scope: "all",
@@ -318,14 +362,28 @@ const DigestGenerateModal = ({ visible, onCancel, onGenerate }) => {
       {renderProgress()}
 
       {!generatedDigest ? (
-        <Form
-          form={form}
-          layout="vertical"
-          autoComplete="off"
-          style={{ opacity: isGenerating ? 0.6 : 1 }}
-        >
-          <FormItem
-            label={polyglot.t("digest.scope")}
+        <>
+          {previewData && (
+            <div style={{ marginBottom: 12 }}>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                {previewData.articleCount} articles, ~{previewData.estimatedTokens} tokens estimated
+                {previewData.maxTokens != null && previewData.maxTokens !== "" && (
+                  <>
+                    {" "}
+                    · Response limited to {previewData.maxTokens} tokens (settings).
+                  </>
+                )}
+              </Text>
+            </div>
+          )}
+          <Form
+            form={form}
+            layout="vertical"
+            autoComplete="off"
+            style={{ opacity: isGenerating ? 0.6 : 1 }}
+          >
+            <FormItem
+              label={polyglot.t("digest.scope")}
             field="scope"
             initialValue="all"
             rules={[{ required: true }]}
@@ -461,7 +519,8 @@ const DigestGenerateModal = ({ visible, onCancel, onGenerate }) => {
               </Button>
             </Space>
           </FormItem>
-        </Form>
+          </Form>
+        </>
       ) : (
         <>
           {renderPreview()}

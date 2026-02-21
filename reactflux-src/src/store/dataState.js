@@ -1,3 +1,4 @@
+import { persistentAtom } from "@nanostores/persistent"
 import { computed, map } from "nanostores"
 
 import { settingsState } from "./settingsState"
@@ -20,6 +21,12 @@ const defaultValue = {
 }
 
 export const dataState = map(defaultValue)
+
+/** Persisted category sort order: array of category IDs. Stored in localStorage; Miniflux API does not support order. */
+export const categoryOrderState = persistentAtom("categoryOrder", [], {
+  encode: JSON.stringify,
+  decode: JSON.parse,
+})
 
 export const feedsState = computed([dataState, settingsState], (data, settings) => {
   const { unreadInfo, feedsData } = data
@@ -74,12 +81,25 @@ export const filteredFeedsState = computed(
 )
 
 export const filteredCategoriesState = computed(
-  [categoriesState, hiddenCategoryIdsState, settingsState],
-  (categories, hiddenCategoryIds, settings) => {
-    const { showHiddenFeeds } = settings
-    return categories.filter(
+  [categoriesState, hiddenCategoryIdsState, settingsState, categoryOrderState],
+  (categories, hiddenCategoryIds, settings, categoryOrder) => {
+    const { showHiddenFeeds, language } = settings
+    const filtered = categories.filter(
       (category) => showHiddenFeeds || !hiddenCategoryIds.includes(category.id),
     )
+    const orderMap = Object.fromEntries(
+      categoryOrder.map((id, index) => [id, index]),
+    )
+    const inOrder = filtered
+      .filter((c) => orderMap[c.id] !== undefined)
+      .sort((a, b) => orderMap[a.id] - orderMap[b.id])
+    const notInOrder = filtered.filter((c) => orderMap[c.id] === undefined)
+    const sortedNotInOrder = sortMixedLanguageArray(
+      notInOrder,
+      "title",
+      language,
+    )
+    return [...inOrder, ...sortedNotInOrder]
   },
 )
 

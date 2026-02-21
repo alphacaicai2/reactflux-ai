@@ -23,7 +23,7 @@ import {
 } from "@arco-design/web-react/icon"
 import { useStore } from "@nanostores/react"
 import { useCallback, useEffect, useState } from "react"
-import { useNavigate } from "react-router"
+import { useNavigate, useParams } from "react-router"
 
 import useDigest from "@/hooks/useDigest"
 import { polyglotState } from "@/hooks/useLanguage"
@@ -85,7 +85,7 @@ const formatDate = (dateString) => {
 /**
  * DigestCard - Single digest card component
  */
-const DigestCard = ({ digest, onView, onDelete, onPush }) => {
+const DigestCard = ({ digest, selectedId, onView, onDelete, onPush }) => {
   const { polyglot } = useStore(polyglotState)
   const config = useStore(digestConfigState)
   const [isPushing, setIsPushing] = useState(false)
@@ -101,9 +101,11 @@ const DigestCard = ({ digest, onView, onDelete, onPush }) => {
     }
   }
 
+  const isActive = selectedId != null && String(digest.id) === String(selectedId)
+
   return (
     <Card
-      className="digest-card"
+      className={`digest-card${isActive ? " digest-card-active" : ""}`}
       hoverable
       onClick={() => onView(digest)}
       actions={[
@@ -186,6 +188,7 @@ const DigestCard = ({ digest, onView, onDelete, onPush }) => {
 const DigestList = () => {
   const { polyglot } = useStore(polyglotState)
   const navigate = useNavigate()
+  const { id: selectedId } = useParams()
 
   const {
     digests,
@@ -288,6 +291,7 @@ const DigestList = () => {
           <List.Item key={digest.id}>
             <DigestCard
               digest={digest}
+              selectedId={selectedId}
               onView={handleView}
               onDelete={handleDelete}
               onPush={handlePush}

@@ -16,11 +16,22 @@ function getAIConfig() {
 
   if (!config) return null;
 
+  let maxTokens;
+  if (config.extra_config) {
+    try {
+      const extra = JSON.parse(config.extra_config);
+      maxTokens = extra.max_tokens ?? extra.maxTokens;
+    } catch {
+      maxTokens = undefined;
+    }
+  }
+
   return {
     provider: config.provider,
     apiUrl: config.api_url,
     apiKey: config.api_key_encrypted ? decrypt(config.api_key_encrypted) : null,
-    model: config.model
+    model: config.model,
+    maxTokens
   };
 }
 
@@ -210,6 +221,48 @@ digest.get('/prompt-default', (c) => {
   } catch (error) {
     console.error('Error fetching default prompt:', error);
     return c.json({ success: false, error: 'Failed to fetch default prompt' }, 500);
+  }
+});
+
+/**
+ * POST /api/digests/preview
+ * Get digest preview: article count and estimated input tokens (no LLM call).
+ * Body: { scope, feedId, groupId, hours, unreadOnly }
+ * Returns: { success, data: { articleCount, estimatedTokens, maxTokens? } }
+ */
+digest.post('/preview', async (c) => {
+  try {
+    const minifluxConfig = getMinifluxConfig();
+    if (!minifluxConfig) {
+      return c.json({ success: false, error: 'Miniflux not configured' }, 400);
+    }
+
+    const body = await c.req.json().catch(() => ({}));
+    const {
+      scope = 'all',
+      feedId,
+      groupId,
+      hours = 24,
+      unreadOnly = true
+    } = body;
+
+    const options = { scope, feedId, groupId, hours, unreadOnly };
+    const preview = await DigestService.getDigestPreview(minifluxConfig, options);
+
+    const aiConfig = getAIConfig();
+    const maxTokens = aiConfig?.maxTokens;
+
+    return c.json({
+      success: true,
+      data: {
+        articleCount: preview.articleCount,
+        estimatedTokens: preview.estimatedTokens,
+        ...(maxTokens != null && maxTokens !== '' && { maxTokens })
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching digest preview:', error);
+    return c.json({ success: false, error: error.message || 'Failed to fetch preview' }, 500);
   }
 });
 

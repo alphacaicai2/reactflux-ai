@@ -25,12 +25,10 @@ const Digest = () => {
 
   const { digests, isLoading, loadDigests } = useDigest()
 
-  // Load digests on mount
+  // Load digests on mount so list is always populated (left panel)
   useEffect(() => {
-    if (!digestId) {
-      loadDigests()
-    }
-  }, [loadDigests, digestId])
+    loadDigests()
+  }, [loadDigests])
 
   // Handle generation complete
   const handleGenerateComplete = useCallback(() => {
@@ -44,70 +42,75 @@ const Digest = () => {
     loadDigests()
   }, [loadDigests])
 
-  if (digestId) {
-    return <DigestDetail />
-  }
-
   return (
-    <div className="digest-page">
-      {/* Header with generate button */}
-      <div className="digest-page-header">
-        <Title heading={4} style={{ margin: 0 }}>
-          {polyglot.t("digest.page_title")}
-        </Title>
-        <Space>
-          <Button
-            type="text"
-            icon={<IconRefresh />}
-            onClick={handleRefresh}
-            loading={isLoading}
-          />
-          {isAIConfigured && (
+    <div
+      className={`digest-page digest-page-split${digestId ? " digest-page-has-selection" : ""}`}
+    >
+      <div className="digest-page-list">
+        <div className="digest-page-header">
+          <Title heading={4} style={{ margin: 0 }}>
+            {polyglot.t("digest.page_title")}
+          </Title>
+          <Space>
             <Button
-              type="primary"
-              icon={<IconPlus />}
-              onClick={() => setModalVisible(true)}
-            >
-              {polyglot.t("digest.generate")}
-            </Button>
-          )}
-        </Space>
+              type="text"
+              icon={<IconRefresh />}
+              onClick={handleRefresh}
+              loading={isLoading}
+            />
+            {isAIConfigured && (
+              <Button
+                type="primary"
+                icon={<IconPlus />}
+                onClick={() => setModalVisible(true)}
+              >
+                {polyglot.t("digest.generate")}
+              </Button>
+            )}
+          </Space>
+        </div>
+
+        {isLoading && digests.length === 0 && (
+          <div className="digest-page-loading">
+            <Spin size={40} />
+            <Text type="secondary">{polyglot.t("digest.loading")}</Text>
+          </div>
+        )}
+
+        {!isLoading && digests.length === 0 && (
+          <div className="digest-page-empty">
+            <Empty description={polyglot.t("digest.no_digests")} />
+            {isAIConfigured && (
+              <Button
+                type="primary"
+                icon={<IconPlus />}
+                onClick={() => setModalVisible(true)}
+                style={{ marginTop: 16 }}
+              >
+                {polyglot.t("digest.generate_first")}
+              </Button>
+            )}
+            {!isAIConfigured && (
+              <Text type="secondary" style={{ marginTop: 16 }}>
+                {polyglot.t("digest.configure_ai_first")}
+              </Text>
+            )}
+          </div>
+        )}
+
+        {digests.length > 0 && <DigestList key={refreshKey} />}
       </div>
 
-      {/* Loading state */}
-      {isLoading && digests.length === 0 && (
-        <div className="digest-page-loading">
-          <Spin size={40} />
-          <Text type="secondary">{polyglot.t("digest.loading")}</Text>
-        </div>
-      )}
+      <div className="digest-page-detail">
+        {digestId ? (
+          <DigestDetail />
+        ) : (
+          <div className="digest-page-welcome">
+            <Empty description={polyglot.t("digest.select_prompt")} />
+          </div>
+        )}
+      </div>
 
-      {/* Empty state with generate button */}
-      {!isLoading && digests.length === 0 && (
-        <div className="digest-page-empty">
-          <Empty description={polyglot.t("digest.no_digests")} />
-          {isAIConfigured && (
-            <Button
-              type="primary"
-              icon={<IconPlus />}
-              onClick={() => setModalVisible(true)}
-              style={{ marginTop: 16 }}
-            >
-              {polyglot.t("digest.generate_first")}
-            </Button>
-          )}
-          {!isAIConfigured && (
-            <Text type="secondary" style={{ marginTop: 16 }}>
-              {polyglot.t("digest.configure_ai_first")}
-            </Text>
-          )}
-        </div>
-      )}
-
-      {/* Digest list */}
-      {digests.length > 0 && <DigestList key={refreshKey} />}
-
-      {/* Generate modal */}
       <DigestGenerateModal
         visible={modalVisible}
         onCancel={() => setModalVisible(false)}

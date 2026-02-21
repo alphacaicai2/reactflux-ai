@@ -46,6 +46,28 @@ function truncateByToken(text, maxTokens) {
 }
 
 /**
+ * Estimate token count for a string (same formula as truncateByToken).
+ * 1 CJK char ≈ 1.6 token, ~4 non-CJK chars ≈ 1 token.
+ */
+function estimateTokenCount(text) {
+  if (!text) return 0;
+
+  let accTokens = 0;
+  const len = text.length;
+
+  for (let i = 0; i < len; i++) {
+    const code = text.charCodeAt(i);
+    if (code >= 0x4e00 && code <= 0x9fff) {
+      accTokens += 1.6;
+    } else {
+      accTokens += 0.3;
+    }
+  }
+
+  return Math.ceil(accTokens);
+}
+
+/**
  * Miniflux API Client
  * Supports both API Key (X-Auth-Token) and Basic Auth
  */
@@ -469,6 +491,29 @@ export const DigestService = {
   async fetchArticlesForDigest(minifluxConfig, options) {
     const client = this.createMinifluxClient(minifluxConfig);
     return getRecentArticles(client, options);
+  },
+
+  /**
+   * Get digest preview: article count and estimated input token count (no LLM call).
+   * @param {object} minifluxConfig - Miniflux config { apiUrl, apiKeyEncrypted or apiKey }
+   * @param {object} options - { scope, feedId, groupId, hours, unreadOnly }
+   * @returns {Promise<{ articleCount: number, estimatedTokens: number }>}
+   */
+  async getDigestPreview(minifluxConfig, options) {
+    const { hours = 24, feedId, groupId, unreadOnly = true } = options ?? {};
+
+    const client = this.createMinifluxClient(minifluxConfig);
+    const articles = await getRecentArticles(client, { hours, feedId, groupId, unreadOnly });
+
+    if (articles.length === 0) {
+      return { articleCount: 0, estimatedTokens: 0 };
+    }
+
+    const prepared = await prepareArticlesForDigest(articles);
+    const prompt = buildDigestPrompt(prepared, { targetLang: 'Simplified Chinese', scope: 'subscription' });
+    const estimatedTokens = estimateTokenCount(prompt);
+
+    return { articleCount: articles.length, estimatedTokens };
   },
 
   /**

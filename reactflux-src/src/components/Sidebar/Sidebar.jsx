@@ -15,6 +15,7 @@ import {
   IconCalendar,
   IconDelete,
   IconDownload,
+  IconDragDotVertical,
   IconEdit,
   IconEye,
   IconEyeInvisible,
@@ -29,6 +30,20 @@ import {
   IconUnorderedList,
   IconUpload,
 } from "@arco-design/web-react/icon"
+import {
+  DndContext,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core"
+import {
+  SortableContext,
+  arrayMove,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
 import { useStore } from "@nanostores/react"
 import classNames from "classnames"
 import { useMemo, useRef, useState } from "react"
@@ -51,6 +66,7 @@ import { polyglotState } from "@/hooks/useLanguage"
 import useScreenWidth from "@/hooks/useScreenWidth"
 import { contentState, setActiveContent, setEntries } from "@/store/contentState"
 import {
+  categoryOrderState,
   dataState,
   feedsGroupedByIdState,
   filteredCategoriesState,
@@ -379,6 +395,75 @@ const FeedMenuGroup = ({
   )
 }
 
+const SortableCategoryItem = ({
+  category,
+  currentPath,
+  onEditCategory,
+  onRefreshCategory,
+  onMarkAllAsReadCategory,
+  onDeleteCategory,
+  onEditFeed,
+  onRefreshFeed,
+  onMarkAllAsReadFeed,
+  onDeleteFeed,
+}) => {
+  const {
+    attributes,
+    isDragging,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+  } = useSortable({ id: category.id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  }
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={classNames("sortable-category-item", { "sortable-category-item--dragging": isDragging })}
+    >
+      <Collapse.Item
+        expandIcon={<IconRight />}
+        name={`/category/${category.id}`}
+        style={{ position: "relative", overflow: "hidden" }}
+        header={
+          <div className="category-item-header">
+            <span
+              className="category-drag-handle"
+              aria-label="Drag to reorder"
+              {...attributes}
+              {...listeners}
+            >
+              <IconDragDotVertical />
+            </span>
+            <CategoryTitle
+              category={category}
+              path={currentPath}
+              onDeleteCategory={onDeleteCategory}
+              onEditCategory={onEditCategory}
+              onMarkAllAsRead={onMarkAllAsReadCategory}
+              onRefreshCategory={onRefreshCategory}
+            />
+          </div>
+        }
+      >
+        <FeedMenuGroup
+          categoryId={category.id}
+          onDeleteFeed={onDeleteFeed}
+          onEditFeed={onEditFeed}
+          onMarkAllAsRead={onMarkAllAsReadFeed}
+          onRefreshFeed={onRefreshFeed}
+        />
+      </Collapse.Item>
+    </div>
+  )
+}
+
 const CategoryGroup = ({
   onEditCategory,
   onRefreshCategory,
@@ -396,50 +481,72 @@ const CategoryGroup = ({
   const location = useLocation()
   const currentPath = location.pathname
 
-  return filteredCategories
-    .filter((category) => {
-      const feedsInCategory = feedsGroupedById[category.id]
+  const visibleCategories = useMemo(
+    () =>
+      filteredCategories.filter((category) => {
+        const feedsInCategory = feedsGroupedById[category.id]
 
-      // If the category does not have a feed
-      if (!feedsInCategory || feedsInCategory.length === 0) {
-        // Display empty categories only if it is not "Show Unread Only" mode
-        return !showUnreadFeedsOnly
-      }
-
-      // If there is a feed, filter by settings
-      return feedsInCategory.some((feed) => {
-        if (showUnreadFeedsOnly) {
-          return feed.unreadCount > 0
+        if (!feedsInCategory || feedsInCategory.length === 0) {
+          return !showUnreadFeedsOnly
         }
-        return true
-      })
-    })
-    .map((category) => (
-      <Collapse.Item
-        key={category.id}
-        expandIcon={<IconRight />}
-        name={`/category/${category.id}`}
-        style={{ position: "relative", overflow: "hidden" }}
-        header={
-          <CategoryTitle
+
+        return feedsInCategory.some((feed) => {
+          if (showUnreadFeedsOnly) {
+            return feed.unreadCount > 0
+          }
+          return true
+        })
+      }),
+    [filteredCategories, feedsGroupedById, showUnreadFeedsOnly],
+  )
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 8 },
+    }),
+  )
+
+  const handleDragEnd = (event) => {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+
+    const ids = visibleCategories.map((c) => c.id)
+    const oldIndex = ids.indexOf(active.id)
+    const newIndex = ids.indexOf(over.id)
+    if (oldIndex === -1 || newIndex === -1) return
+
+    const newOrder = arrayMove(ids, oldIndex, newIndex)
+    categoryOrderState.set(newOrder)
+  }
+
+  return (
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragEnd={handleDragEnd}
+    >
+      <SortableContext
+        items={visibleCategories.map((c) => c.id)}
+        strategy={verticalListSortingStrategy}
+      >
+        {visibleCategories.map((category) => (
+          <SortableCategoryItem
+            key={category.id}
             category={category}
-            path={currentPath}
+            currentPath={currentPath}
             onDeleteCategory={onDeleteCategory}
             onEditCategory={onEditCategory}
-            onMarkAllAsRead={onMarkAllAsReadCategory}
+            onMarkAllAsReadCategory={onMarkAllAsReadCategory}
             onRefreshCategory={onRefreshCategory}
+            onEditFeed={onEditFeed}
+            onRefreshFeed={onRefreshFeed}
+            onMarkAllAsReadFeed={onMarkAllAsReadFeed}
+            onDeleteFeed={onDeleteFeed}
           />
-        }
-      >
-        <FeedMenuGroup
-          categoryId={category.id}
-          onDeleteFeed={onDeleteFeed}
-          onEditFeed={onEditFeed}
-          onMarkAllAsRead={onMarkAllAsReadFeed}
-          onRefreshFeed={onRefreshFeed}
-        />
-      </Collapse.Item>
-    ))
+        ))}
+      </SortableContext>
+    </DndContext>
+  )
 }
 
 const readFileAsText = async (file) => {

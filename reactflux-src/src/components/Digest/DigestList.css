@@ -46,6 +46,12 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
+.digest-card-active {
+  border-color: rgb(var(--primary-6));
+  box-shadow: 0 0 0 1px rgb(var(--primary-6));
+  background-color: var(--color-fill-2);
+}
+
 .digest-card-header {
   margin-bottom: 8px;
 }

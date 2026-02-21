@@ -5,6 +5,35 @@
   overflow: hidden;
 }
 
+/* Two-column split: list left, detail right (widest) */
+.digest-page-split {
+  display: grid;
+  grid-template-columns: minmax(280px, 360px) 1fr;
+  grid-template-areas: "digest-list digest-detail";
+  min-height: 0;
+  overflow: hidden;
+}
+
+.digest-page-list {
+  grid-area: digest-list;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  border-right: 1px solid var(--color-border);
+  background-color: var(--color-bg-2);
+}
+
+.digest-page-detail {
+  grid-area: digest-detail;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  background-color: var(--color-bg-1);
+}
+
 .digest-page-header {
   display: flex;
   justify-content: space-between;
@@ -35,4 +64,42 @@
   justify-content: center;
   align-items: center;
   padding: 32px;
+}
+
+.digest-page-welcome {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 40px 16px;
+  color: var(--color-text-3);
+}
+
+@media screen and (max-width: 768px) {
+  .digest-page-split {
+    grid-template-columns: 1fr;
+    grid-template-areas: "digest-list" "digest-detail";
+    grid-template-rows: auto 1fr;
+  }
+
+  .digest-page-list {
+    border-right: none;
+    border-bottom: 1px solid var(--color-border);
+    max-height: 40vh;
+    flex-shrink: 0;
+  }
+
+  .digest-page-detail {
+    min-height: 0;
+  }
+
+  /* When a digest is selected on small screens, show only detail (list hidden via class or keep both stacked) */
+  .digest-page-split.digest-page-has-selection .digest-page-list {
+    display: none;
+  }
+
+  .digest-page-split.digest-page-has-selection .digest-page-detail {
+    grid-row: 1 / -1;
+  }
 }

@@ -106,6 +106,9 @@ export const loadConfig = async () => {
     }
 
     const currentConfig = aiConfigState.get()
+    // Backend returns apiKey as masked string (e.g. "sk-****xxxx") when a key is stored, or null otherwise
+    const hasStoredApiKey = Boolean(activeConfig?.apiKey ?? activeConfig?.api_key)
+
     const mappedConfig = {
       ...currentConfig,
       enabled:
@@ -117,7 +120,7 @@ export const loadConfig = async () => {
       provider: activeConfig?.provider || currentConfig.provider,
       apiUrl: activeConfig?.api_url || activeConfig?.apiUrl || currentConfig.apiUrl,
       model: activeConfig?.model || currentConfig.model,
-      hasStoredApiKey: Boolean(activeConfig?.apiKey),
+      hasStoredApiKey,
     }
 
     aiConfigState.set(mappedConfig)

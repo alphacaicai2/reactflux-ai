@@ -144,7 +144,8 @@ const AISettings = () => {
   // Save Configuration
   // ============================================
   const handleSaveConfig = useCallback(async () => {
-    if (!config.provider || !config.model || !localApiKey) {
+    const hasKey = localApiKey || config.hasStoredApiKey
+    if (!config.provider || !config.model || !hasKey) {
       Message.warning(polyglot.t("ai.fill_required_fields"))
       return
     }
@@ -159,7 +160,7 @@ const AISettings = () => {
         isActive: true,
       }
       await saveConfig(configToSave)
-      setAIApiKey(localApiKey)
+      if (localApiKey) setAIApiKey(localApiKey)
       updateAIConfig({ hasStoredApiKey: true })
       setSaveStatus("success")
       setSaveMessage(polyglot.t("ai.save_success"))
@@ -240,7 +241,7 @@ const AISettings = () => {
     }
   }, [digestConfig, polyglot])
 
-  // Test connection
+  // Test connection (requires local API key; cannot use server-stored key for test)
   const handleTestConnection = useCallback(async () => {
     if (!config.provider || !config.model || !localApiKey) {
       Message.warning(polyglot.t("ai.fill_required_fields"))
@@ -386,7 +387,11 @@ const AISettings = () => {
           >
             <Input.Password
               className="input-select"
-              placeholder={polyglot.t("ai.api_key_placeholder")}
+              placeholder={
+                config.hasStoredApiKey && !localApiKey
+                  ? polyglot.t("ai.api_key_stored_placeholder")
+                  : polyglot.t("ai.api_key_placeholder")
+              }
               value={localApiKey}
               onChange={handleApiKeyChange}
               onBlur={handleApiKeyBlur}

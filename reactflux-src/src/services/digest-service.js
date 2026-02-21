@@ -144,6 +144,16 @@ export const markAllDigestsAsRead = async (options = {}) => {
 // ============================================
 
 /**
+ * Get digest preview (article count and estimated tokens, no LLM call).
+ * @param {object} options - Same shape as generate: scope, feedId, groupId, hours, unreadOnly
+ * @returns {Promise<object>} { data: { articleCount, estimatedTokens, maxTokens } }
+ */
+export const previewDigest = async (options = {}) => {
+  const response = await digestClient.post("/preview", options)
+  return response
+}
+
+/**
  * Generate a new digest using AI
  * @param {object} options - Generation options
  * @param {string} [options.scope='all'] - Scope (all, feed, group)
