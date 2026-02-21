@@ -22,6 +22,7 @@ import useDigest from "@/hooks/useDigest"
 import { polyglotState } from "@/hooks/useLanguage"
 import { categoriesState } from "@/store/dataState"
 import { isAIConfiguredState } from "@/store/aiState"
+import { authState } from "@/store/authState"
 import { digestConfigState } from "@/store/digestState"
 import { getDefaultPrompt, previewDigest, WEBHOOK_TEMPLATES } from "@/services/digest-service"
 
@@ -102,6 +103,23 @@ const DigestGenerateModal = ({ visible, onCancel, onGenerate }) => {
         if (scope === "group" && scopeId != null && scopeId !== "") {
           options.groupId = Number(scopeId)
         }
+
+        const auth = authState.get()
+        let minifluxApiKey = auth?.token || ""
+        if (!minifluxApiKey && auth?.username && auth?.password) {
+          try {
+            minifluxApiKey = globalThis.btoa(`${auth.username}:${auth.password}`)
+          } catch {
+            minifluxApiKey = globalThis.btoa(
+              unescape(encodeURIComponent(`${auth.username}:${auth.password}`)),
+            )
+          }
+        }
+        if (auth?.server && minifluxApiKey) {
+          options.minifluxApiUrl = auth.server
+          options.minifluxApiKey = minifluxApiKey
+        }
+
         const res = await previewDigest(options)
         if (res?.data) {
           setPreviewData(res.data)

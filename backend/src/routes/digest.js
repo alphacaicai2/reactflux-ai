@@ -232,19 +232,27 @@ digest.get('/prompt-default', (c) => {
  */
 digest.post('/preview', async (c) => {
   try {
-    const minifluxConfig = getMinifluxConfig();
-    if (!minifluxConfig) {
-      return c.json({ success: false, error: 'Miniflux not configured' }, 400);
-    }
-
     const body = await c.req.json().catch(() => ({}));
     const {
       scope = 'all',
       feedId,
       groupId,
       hours = 24,
-      unreadOnly = true
+      unreadOnly = true,
+      minifluxApiUrl,
+      minifluxApiKey
     } = body;
+
+    let minifluxConfig = null;
+    if (minifluxApiUrl && minifluxApiKey) {
+      minifluxConfig = { apiUrl: minifluxApiUrl, apiKey: minifluxApiKey };
+    } else {
+      minifluxConfig = getMinifluxConfig();
+    }
+
+    if (!minifluxConfig) {
+      return c.json({ success: false, error: 'Miniflux not configured' }, 400);
+    }
 
     const options = { scope, feedId, groupId, hours, unreadOnly };
     const preview = await DigestService.getDigestPreview(minifluxConfig, options);
