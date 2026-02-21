@@ -1,7 +1,7 @@
-import { Button, Empty, Space, Spin, Typography } from "@arco-design/web-react"
+import { Button, Empty, Message, Space, Spin, Typography } from "@arco-design/web-react"
 import { IconPlus, IconRefresh } from "@arco-design/web-react/icon"
 import { useStore } from "@nanostores/react"
-import { useCallback, useState, useEffect } from "react"
+import { useCallback, useState, useEffect, useRef } from "react"
 import { useParams } from "react-router"
 
 import { DigestDetail, DigestGenerateModal, DigestList } from "@/components/Digest"
@@ -23,16 +23,30 @@ const Digest = () => {
   const [refreshKey, setRefreshKey] = useState(0)
   const [modalVisible, setModalVisible] = useState(false)
 
-  const { digests, isLoading, loadDigests } = useDigest()
+  const { digests, isLoading, loadDigests, generation } = useDigest()
+  const prevGenerationStatus = useRef(generation.status)
 
   // Load digests on mount so list is always populated (left panel)
   useEffect(() => {
     loadDigests()
   }, [loadDigests])
 
-  // Handle generation complete
+  // Show notification when background generation completes
+  useEffect(() => {
+    const prev = prevGenerationStatus.current
+    prevGenerationStatus.current = generation.status
+
+    if (prev !== "completed" && generation.status === "completed") {
+      Message.success(polyglot.t("digest.generation_complete"))
+      loadDigests()
+      setRefreshKey((k) => k + 1)
+    } else if (prev !== "error" && generation.status === "error") {
+      Message.error(generation.error || polyglot.t("digest.generate_error"))
+    }
+  }, [generation.status, generation.error, loadDigests, polyglot])
+
+  // Handle generation started — modal closes, list will refresh when job completes
   const handleGenerateComplete = useCallback(() => {
-    setModalVisible(false)
     setRefreshKey((prev) => prev + 1)
     loadDigests()
   }, [loadDigests])

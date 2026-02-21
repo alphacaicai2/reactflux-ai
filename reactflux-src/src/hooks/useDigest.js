@@ -50,6 +50,7 @@ import {
   markDigestAsRead,
   markAllDigestsAsRead,
   generateDigest as generateDigestApi,
+  getJobStatus,
   pushDigest,
   getScheduledTasks,
   createScheduledTask,
@@ -281,15 +282,12 @@ export function useDigest() {
 
       updateGenerationProgress(10, "fetching")
 
-      // Get Miniflux credentials from authState
       const auth = authState.get()
       let minifluxApiKey = auth?.token || ""
-      // Support username/password login by sending Basic credentials as base64.
       if (!minifluxApiKey && auth?.username && auth?.password) {
         try {
           minifluxApiKey = globalThis.btoa(`${auth.username}:${auth.password}`)
         } catch {
-          // Fallback for non-ASCII credentials
           minifluxApiKey = globalThis.btoa(
             unescape(encodeURIComponent(`${auth.username}:${auth.password}`)),
           )
@@ -297,13 +295,9 @@ export function useDigest() {
       }
       const minifluxCredentials =
         auth?.server && minifluxApiKey
-          ? {
-              minifluxApiUrl: auth.server,
-              minifluxApiKey,
-            }
+          ? { minifluxApiUrl: auth.server, minifluxApiKey }
           : null
 
-      // Merge credentials with options
       const optionsWithCredentials = {
         ...options,
         ...(minifluxCredentials || {}),
@@ -311,19 +305,46 @@ export function useDigest() {
 
       const response = await generateDigestApi(optionsWithCredentials)
 
-      if (response.success) {
-        updateGenerationProgress(100, "completed")
-        completeGeneration(response.data.digest)
-
-        // Add to digests list
-        if (response.data.digest) {
-          addDigest(response.data.digest)
-        }
-
-        return response
-      } else {
-        throw new Error(response.error || "Generation failed")
+      if (!response.success || !response.data?.jobId) {
+        throw new Error(response.error || "Failed to start generation")
       }
+
+      const { jobId } = response.data
+      updateGenerationProgress(20, "generating")
+
+      // Poll job status in background
+      const pollInterval = setInterval(async () => {
+        try {
+          const statusRes = await getJobStatus(jobId)
+          const job = statusRes?.data
+
+          if (!job) {
+            clearInterval(pollInterval)
+            failGeneration("Job lost")
+            return
+          }
+
+          if (job.status === "generating") {
+            updateGenerationProgress(job.progress || 50, "generating")
+          } else if (job.status === "completed") {
+            clearInterval(pollInterval)
+            updateGenerationProgress(100, "completed")
+            completeGeneration(job.digest)
+            if (job.digest) {
+              addDigest(job.digest)
+            }
+          } else if (job.status === "error") {
+            clearInterval(pollInterval)
+            failGeneration(job.error || "Generation failed")
+          }
+        } catch (pollErr) {
+          console.error("Job polling error:", pollErr)
+          clearInterval(pollInterval)
+          failGeneration(pollErr.message || "Polling failed")
+        }
+      }, 3000)
+
+      return { success: true, data: { jobId } }
     } catch (err) {
       console.error("Failed to generate digest:", err)
       failGeneration(err.message)

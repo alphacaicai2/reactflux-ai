@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { randomUUID } from 'node:crypto';
 import db from '../db/index.js';
 import { decrypt, encrypt, maskApiKey } from '../utils/encryption.js';
 import { DigestService } from '../services/digest-service.js';
@@ -6,6 +7,19 @@ import { PushService } from '../services/push-service.js';
 import { SchedulerService } from '../services/scheduler.js';
 
 const digest = new Hono();
+
+// In-memory job queue for async digest generation
+const generationJobs = new Map();
+const JOB_TTL_MS = 30 * 60 * 1000; // 30 minutes
+
+function cleanupOldJobs() {
+  const now = Date.now();
+  for (const [id, job] of generationJobs) {
+    if (now - job.createdAt > JOB_TTL_MS) {
+      generationJobs.delete(id);
+    }
+  }
+}
 
 /**
  * 获取 AI 配置
@@ -275,29 +289,6 @@ digest.post('/preview', async (c) => {
 });
 
 /**
- * GET /api/digests/:id
- * 获取单个简报
- */
-digest.get('/:id', (c) => {
-  try {
-    const id = c.req.param('id');
-    const digestItem = DigestService.getDigest(id);
-
-    if (!digestItem) {
-      return c.json({ success: false, error: 'Digest not found' }, 404);
-    }
-
-    return c.json({
-      success: true,
-      data: digestItem
-    });
-  } catch (error) {
-    console.error('Error fetching digest:', error);
-    return c.json({ success: false, error: 'Failed to fetch digest' }, 500);
-  }
-});
-
-/**
  * POST /api/digests
  * 创建简报（手动保存）
  */
@@ -431,7 +422,7 @@ digest.post('/read-all', async (c) => {
 
 /**
  * POST /api/digests/generate
- * 手动生成简报（调用 AI）
+ * Async digest generation — returns a jobId immediately, processes in background.
  */
 digest.post('/generate', async (c) => {
   try {
@@ -446,12 +437,10 @@ digest.post('/generate', async (c) => {
       unreadOnly = true,
       pushConfig,
       timezone,
-      // Allow passing Miniflux credentials from frontend
       minifluxApiUrl,
       minifluxApiKey
     } = body;
 
-    // 获取 AI 配置
     const aiConfig = getAIConfig();
     if (!aiConfig || !aiConfig.apiKey) {
       return c.json({
@@ -460,17 +449,10 @@ digest.post('/generate', async (c) => {
       }, 400);
     }
 
-    // 获取 Miniflux 配置 - 优先使用请求中的凭证，否则从数据库获取
     let minifluxConfig = null;
-
     if (minifluxApiUrl && minifluxApiKey) {
-      // 使用请求中提供的 Miniflux 凭证
-      minifluxConfig = {
-        apiUrl: minifluxApiUrl,
-        apiKey: minifluxApiKey
-      };
+      minifluxConfig = { apiUrl: minifluxApiUrl, apiKey: minifluxApiKey };
     } else {
-      // 从数据库获取配置
       minifluxConfig = getMinifluxConfig();
     }
 
@@ -481,52 +463,98 @@ digest.post('/generate', async (c) => {
       }, 400);
     }
 
-    // 生成简报
-    const result = await DigestService.generate(minifluxConfig, aiConfig, {
-      scope,
-      feedId,
-      groupId,
-      hours,
-      targetLang,
-      prompt: customPrompt,
-      unreadOnly,
-      timezone
+    cleanupOldJobs();
+
+    const jobId = randomUUID();
+    generationJobs.set(jobId, {
+      status: 'pending',
+      progress: 0,
+      digest: null,
+      error: null,
+      createdAt: Date.now()
     });
 
-    if (!result.success) {
-      return c.json({
-        success: false,
-        error: result.error || 'Failed to generate digest'
-      }, 500);
-    }
-
-    // 推送通知（如果配置了）
-    let pushResult = null;
-    if (pushConfig && pushConfig.url) {
+    // Fire-and-forget: process in background
+    (async () => {
+      const job = generationJobs.get(jobId);
+      if (!job) return;
       try {
-        pushResult = await PushService.send(
-          pushConfig,
-          result.digest.title,
-          result.digest.content
-        );
-      } catch (pushErr) {
-        console.error('Push notification failed:', pushErr);
-        pushResult = { success: false, error: pushErr.message };
+        job.status = 'generating';
+        job.progress = 20;
+
+        const result = await DigestService.generate(minifluxConfig, aiConfig, {
+          scope, feedId, groupId, hours, targetLang,
+          prompt: customPrompt, unreadOnly, timezone
+        });
+
+        if (!result.success) {
+          job.status = 'error';
+          job.error = result.error || 'Failed to generate digest';
+          return;
+        }
+
+        job.progress = 90;
+
+        let pushResult = null;
+        if (pushConfig && pushConfig.url) {
+          try {
+            pushResult = await PushService.send(pushConfig, result.digest.title, result.digest.content);
+          } catch (pushErr) {
+            console.error('Push notification failed:', pushErr);
+            pushResult = { success: false, error: pushErr.message };
+          }
+        }
+
+        job.status = 'completed';
+        job.progress = 100;
+        job.digest = result.digest;
+        job.push = pushResult;
+      } catch (err) {
+        console.error('Background generation error:', err);
+        job.status = 'error';
+        job.error = err.message || 'Unexpected error during generation';
       }
-    }
+    })();
 
     return c.json({
       success: true,
-      data: {
-        digest: result.digest,
-        push: pushResult
-      }
-    });
+      data: { jobId, status: 'pending' }
+    }, 202);
 
   } catch (error) {
-    console.error('Error generating digest:', error);
-    return c.json({ success: false, error: error.message || 'Failed to generate digest' }, 500);
+    console.error('Error starting digest generation:', error);
+    return c.json({ success: false, error: error.message || 'Failed to start generation' }, 500);
   }
+});
+
+/**
+ * GET /api/digests/jobs/:jobId
+ * Check async generation job status
+ */
+digest.get('/jobs/:jobId', (c) => {
+  const jobId = c.req.param('jobId');
+  const job = generationJobs.get(jobId);
+
+  if (!job) {
+    return c.json({ success: false, error: 'Job not found' }, 404);
+  }
+
+  const response = {
+    success: true,
+    data: {
+      jobId,
+      status: job.status,
+      progress: job.progress,
+      error: job.error
+    }
+  };
+
+  if (job.status === 'completed' && job.digest) {
+    response.data.digest = job.digest;
+    response.data.push = job.push;
+  }
+
+  return c.json(response);
 });
 
 /**
@@ -792,6 +820,33 @@ digest.post('/schedule/:id/run', async (c) => {
   } catch (error) {
     console.error('Error running scheduled task:', error);
     return c.json({ success: false, error: error.message || 'Failed to run scheduled task' }, 500);
+  }
+});
+
+// ============================================
+// Parameterized catch-all routes (MUST be after all specific routes)
+// ============================================
+
+/**
+ * GET /api/digests/:id
+ * 获取单个简报
+ */
+digest.get('/:id', (c) => {
+  try {
+    const id = c.req.param('id');
+    const digestItem = DigestService.getDigest(id);
+
+    if (!digestItem) {
+      return c.json({ success: false, error: 'Digest not found' }, 404);
+    }
+
+    return c.json({
+      success: true,
+      data: digestItem
+    });
+  } catch (error) {
+    console.error('Error fetching digest:', error);
+    return c.json({ success: false, error: 'Failed to fetch digest' }, 500);
   }
 });
 

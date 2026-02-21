@@ -170,7 +170,7 @@ const DigestGenerateModal = ({ visible, onCancel, onGenerate }) => {
     [categories]
   )
 
-  // Handle form submission
+  // Handle form submission — starts async generation and closes modal
   const handleGenerate = useCallback(async () => {
     if (!isAIConfigured) {
       Message.warning(polyglot.t("ai.not_configured"))
@@ -192,7 +192,6 @@ const DigestGenerateModal = ({ visible, onCancel, onGenerate }) => {
         options.prompt = values.customPrompt.trim()
       }
 
-      // 指定分组时传分组 ID 与名称（确保为数字）
       if (values.scope === "group") {
         const scopeId = values.scopeId ?? values.groupId
         if (scopeId == null || scopeId === "") {
@@ -206,7 +205,6 @@ const DigestGenerateModal = ({ visible, onCancel, onGenerate }) => {
         }
       }
 
-      // Add push config if enabled
       if (showPushConfig && config.webhookUrl) {
         options.pushConfig = {
           method: config.webhookMethod,
@@ -217,9 +215,10 @@ const DigestGenerateModal = ({ visible, onCancel, onGenerate }) => {
 
       await generateDigest(options)
 
-      if (onGenerate) {
-        onGenerate()
-      }
+      Message.info(polyglot.t("digest.generation_started"))
+
+      if (onCancel) onCancel()
+      if (onGenerate) onGenerate()
     } catch (err) {
       console.error("Generation error:", err)
       Message.error(err.message || polyglot.t("digest.generate_error"))
@@ -235,6 +234,7 @@ const DigestGenerateModal = ({ visible, onCancel, onGenerate }) => {
     generateDigest,
     clearError,
     polyglot,
+    onCancel,
     onGenerate,
   ])
 
@@ -283,21 +283,9 @@ const DigestGenerateModal = ({ visible, onCancel, onGenerate }) => {
     }
   }, [generatedDigest, saveDigest, onCancel, polyglot])
 
-  // Handle cancel
   const handleCancel = useCallback(() => {
-    if (isGenerating) {
-      Modal.confirm({
-        title: polyglot.t("digest.cancel_generation_title"),
-        content: polyglot.t("digest.cancel_generation_content"),
-        onOk: () => {
-          resetGeneration()
-          if (onCancel) onCancel()
-        },
-      })
-    } else {
-      if (onCancel) onCancel()
-    }
-  }, [isGenerating, resetGeneration, onCancel, polyglot])
+    if (onCancel) onCancel()
+  }, [onCancel])
 
   // Render generation progress
   const renderProgress = () => {

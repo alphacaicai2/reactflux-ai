@@ -173,6 +173,16 @@ export const generateDigest = async (options = {}) => {
 }
 
 /**
+ * Get async generation job status
+ * @param {string} jobId - Job ID returned by generateDigest
+ * @returns {Promise<object>} { data: { jobId, status, progress, digest?, error? } }
+ */
+export const getJobStatus = async (jobId) => {
+  const response = await digestClient.get(`/jobs/${jobId}`)
+  return response
+}
+
+/**
  * Get default digest prompt template (placeholders: {{content}}, {{targetLang}})
  * @returns {Promise<object>} { defaultPrompt: string }
  */

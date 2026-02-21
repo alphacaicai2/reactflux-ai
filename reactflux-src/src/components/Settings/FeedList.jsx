@@ -153,9 +153,66 @@ const BulkOperationsModal = ({ visible, setVisible, selectedFeeds, onComplete })
   const [newStatus, setNewStatus] = useState("")
   const [loading, setLoading] = useState(false)
 
+  const handleBulkDelete = async () => {
+    Modal.confirm({
+      title: polyglot.t("feed_table.bulk_delete_confirm_title"),
+      content: polyglot.t("feed_table.bulk_delete_confirm_content", {
+        count: selectedFeeds.length,
+      }),
+      onOk: async () => {
+        setLoading(true)
+        try {
+          const { deleteFeed } = await import("@/apis/feeds")
+          const results = await Promise.allSettled(
+            selectedFeeds.map((feed) => deleteFeed(feed.key)),
+          )
+
+          const successCount = results.filter(
+            (r) => r.status === "fulfilled" && r.value?.status === 204,
+          ).length
+          const failCount = results.length - successCount
+
+          // 更新本地状态
+          const deletedIds = new Set(
+            selectedFeeds
+              .filter((_, i) => results[i].status === "fulfilled")
+              .map((f) => f.key),
+          )
+          setFeedsData((feeds) => feeds.filter((feed) => !deletedIds.has(feed.id)))
+
+          if (failCount > 0) {
+            Message.warning(
+              polyglot.t("feed_table.bulk_delete_partial", {
+                success: successCount,
+                failed: failCount,
+              }),
+            )
+          } else {
+            Message.success(
+              polyglot.t("feed_table.bulk_delete_success", { count: successCount }),
+            )
+          }
+
+          onComplete()
+          setVisible(false)
+        } catch (error) {
+          console.error("Failed to bulk delete feeds:", error)
+          Message.error(polyglot.t("feed_table.bulk_delete_error"))
+        } finally {
+          setLoading(false)
+        }
+      },
+    })
+  }
+
   const handleBulkOperation = async () => {
     if (!operationType) {
       return
+    }
+
+    // 删除操作单独处理
+    if (operationType === "delete") {
+      return handleBulkDelete()
     }
 
     setLoading(true)
@@ -219,6 +276,11 @@ const BulkOperationsModal = ({ visible, setVisible, selectedFeeds, onComplete })
     <Modal
       className="edit-modal"
       confirmLoading={loading}
+      confirmText={
+        operationType === "delete"
+          ? polyglot.t("feed_table.bulk_operations_delete")
+          : undefined
+      }
       title={polyglot.t("feed_table.bulk_operations_title")}
       visible={visible}
       onCancel={handleCancel}
@@ -242,6 +304,11 @@ const BulkOperationsModal = ({ visible, setVisible, selectedFeeds, onComplete })
           </Select.Option>
           <Select.Option value="status">
             {polyglot.t("feed_table.bulk_operations_change_status")}
+          </Select.Option>
+          <Select.Option value="delete">
+            <span style={{ color: "var(--color-danger-light-4)" }}>
+              {polyglot.t("feed_table.bulk_operations_delete")}
+            </span>
           </Select.Option>
         </Select>
       </Form.Item>
@@ -283,6 +350,12 @@ const BulkOperationsModal = ({ visible, setVisible, selectedFeeds, onComplete })
             </Select.Option>
           </Select>
         </Form.Item>
+      )}
+
+      {operationType === "delete" && (
+        <div style={{ color: "var(--color-danger-light-4)", marginTop: 8 }}>
+          <p>{polyglot.t("feed_table.bulk_delete_warning")}</p>
+        </div>
       )}
     </Modal>
   )
