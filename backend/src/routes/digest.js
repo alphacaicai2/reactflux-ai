@@ -258,11 +258,9 @@ digest.post('/preview', async (c) => {
       minifluxApiKey
     } = body;
 
-    let minifluxConfig = null;
-    if (minifluxApiUrl && minifluxApiKey) {
+    let minifluxConfig = getMinifluxCredentials();
+    if (!minifluxConfig && minifluxApiUrl && minifluxApiKey) {
       minifluxConfig = { apiUrl: minifluxApiUrl, apiKey: minifluxApiKey };
-    } else {
-      minifluxConfig = getMinifluxCredentials();
     }
 
     if (!minifluxConfig) {
@@ -450,11 +448,9 @@ digest.post('/generate', async (c) => {
       }, 400);
     }
 
-    let minifluxConfig = null;
-    if (minifluxApiUrl && minifluxApiKey) {
+    let minifluxConfig = getMinifluxCredentials();
+    if (!minifluxConfig && minifluxApiUrl && minifluxApiKey) {
       minifluxConfig = { apiUrl: minifluxApiUrl, apiKey: minifluxApiKey };
-    } else {
-      minifluxConfig = getMinifluxCredentials();
     }
 
     if (!minifluxConfig) {
