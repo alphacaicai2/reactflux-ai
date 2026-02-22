@@ -26,7 +26,10 @@ import "./Profile.css"
 
 export default function Profile() {
   const navigate = useNavigate()
-  const { server } = useStore(authState)
+  const auth = useStore(authState)
+  const { server, sessionToken, feishuUser } = auth
+  const isFeishuLogin = !!sessionToken && !!feishuUser
+
   const { polyglot } = useStore(polyglotState)
 
   const { themeMode } = useStore(settingsState)
@@ -49,7 +52,15 @@ export default function Profile() {
       content: <p>{polyglot.t("sidebar.logout_description")}</p>,
       icon: <IconInfoCircleFill />,
       okButtonProps: { status: "danger" },
-      onOk: () => {
+      onOk: async () => {
+        if (isFeishuLogin && sessionToken) {
+          try {
+            await fetch("/api/auth/logout", {
+              method: "POST",
+              headers: { Authorization: `Bearer ${sessionToken}` },
+            })
+          } catch (_) {}
+        }
         resetAuth()
         resetContent()
         resetData()
@@ -97,10 +108,12 @@ export default function Profile() {
                 <IconSettings className="icon-right" />
                 {polyglot.t("sidebar.settings")}
               </Menu.Item>
-              <Menu.Item key="1" onClick={() => window.open(`${server}/settings`, "_blank")}>
-                <IconLink className="icon-right" />
-                {polyglot.t("sidebar.miniflux_settings")}
-              </Menu.Item>
+              {!isFeishuLogin && (
+                <Menu.Item key="1" onClick={() => window.open(`${server}/settings`, "_blank")}>
+                  <IconLink className="icon-right" />
+                  {polyglot.t("sidebar.miniflux_settings")}
+                </Menu.Item>
+              )}
               <Menu.Item
                 key="2"
                 onClick={() =>
@@ -122,7 +135,36 @@ export default function Profile() {
             </Menu>
           }
         >
-          <Button icon={<IconUser />} shape="circle" size="small" style={{ marginRight: 8 }} />
+          {isFeishuLogin && feishuUser ? (
+            <Button
+              type="text"
+              size="small"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                marginRight: 8,
+                padding: "2px 6px",
+              }}
+            >
+              {feishuUser.avatar ? (
+                <img
+                  src={feishuUser.avatar}
+                  alt=""
+                  width={24}
+                  height={24}
+                  style={{ borderRadius: "50%", objectFit: "cover" }}
+                />
+              ) : (
+                <IconUser />
+              )}
+              <span style={{ maxWidth: 80, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {feishuUser.name || ""}
+              </span>
+            </Button>
+          ) : (
+            <Button icon={<IconUser />} shape="circle" size="small" style={{ marginRight: 8 }} />
+          )}
         </Dropdown>
       </div>
     </div>
