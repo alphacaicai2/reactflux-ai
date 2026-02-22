@@ -211,7 +211,7 @@ export const testConnection = async (config = null) => {
 
     const testConfig = config || getConfig()
 
-    if (!testConfig.provider || !testConfig.model || !testConfig.apiKey) {
+    if (!testConfig.provider || !testConfig.model || (!testConfig.apiKey && !testConfig.hasStoredApiKey)) {
       throw new Error("Missing required configuration: provider, model, or API key")
     }
 

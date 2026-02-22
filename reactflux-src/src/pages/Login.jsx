@@ -2,7 +2,6 @@ import {
   Button,
   Form,
   Input,
-  Link,
   Message,
   Notification,
   Spin,
@@ -289,15 +288,6 @@ const Login = () => {
             )}
 
             {!feishuConfigLoading && !feishuConfig && minifluxFormBlock}
-
-            {!feishuConfig && (
-              <div style={{ display: "flex", marginTop: 40 }}>
-                <Typography.Text disabled>{polyglot.t("login.need_help")}</Typography.Text>
-                <Link href="https://miniflux.app/docs/api.html#authentication" style={{ fontWeight: 500 }}>
-                  {polyglot.t("login.miniflux_official_website")}
-                </Link>
-              </div>
-            )}
           </div>
         </div>
         <div className="background" />
