@@ -31,6 +31,49 @@ import DigestPreview from "./DigestPreview"
 const FormItem = Form.Item
 const { Text, Title } = Typography
 
+function DigestGenerationProgress({ isGenerating, generation, polyglot }) {
+  if (!isGenerating && generation.status !== "completed") return null
+  const status = generation.status
+  const progress = generation.progress
+  let statusText = ""
+  switch (status) {
+    case "fetching":
+      statusText = polyglot.t("digest.status_fetching")
+      break
+    case "generating":
+      statusText = polyglot.t("digest.status_generating")
+      break
+    case "completed":
+      statusText = polyglot.t("digest.status_completed")
+      break
+    case "error":
+      statusText = polyglot.t("digest.status_error")
+      break
+    default:
+      statusText = ""
+  }
+  return (
+    <div style={{ marginBottom: 20 }}>
+      <Progress
+        percent={progress}
+        status={status === "error" ? "danger" : status === "completed" ? "success" : "loading"}
+        style={{ marginBottom: 8 }}
+      />
+      <Text type="secondary">{statusText}</Text>
+    </div>
+  )
+}
+
+function DigestGeneratedPreview({ digest }) {
+  if (!digest) return null
+  return (
+    <div style={{ marginTop: 20 }}>
+      <Divider />
+      <DigestPreview digest={digest} />
+    </div>
+  )
+}
+
 /**
  * Time range options for digest generation
  */
@@ -287,55 +330,6 @@ const DigestGenerateModal = ({ visible, onCancel, onGenerate }) => {
     if (onCancel) onCancel()
   }, [onCancel])
 
-  // Render generation progress
-  const renderProgress = () => {
-    if (!isGenerating && generation.status !== "completed") return null
-
-    const status = generation.status
-    const progress = generation.progress
-
-    let statusText = ""
-    switch (status) {
-      case "fetching":
-        statusText = polyglot.t("digest.status_fetching")
-        break
-      case "generating":
-        statusText = polyglot.t("digest.status_generating")
-        break
-      case "completed":
-        statusText = polyglot.t("digest.status_completed")
-        break
-      case "error":
-        statusText = polyglot.t("digest.status_error")
-        break
-      default:
-        statusText = ""
-    }
-
-    return (
-      <div style={{ marginBottom: 20 }}>
-        <Progress
-          percent={progress}
-          status={status === "error" ? "danger" : status === "completed" ? "success" : "loading"}
-          style={{ marginBottom: 8 }}
-        />
-        <Text type="secondary">{statusText}</Text>
-      </div>
-    )
-  }
-
-  // Render generated digest preview
-  const renderPreview = () => {
-    if (!generatedDigest) return null
-
-    return (
-      <div style={{ marginTop: 20 }}>
-        <Divider />
-        <DigestPreview digest={generatedDigest} />
-      </div>
-    )
-  }
-
   return (
     <Modal
       title={
@@ -365,7 +359,11 @@ const DigestGenerateModal = ({ visible, onCancel, onGenerate }) => {
         />
       )}
 
-      {renderProgress()}
+      <DigestGenerationProgress
+        isGenerating={isGenerating}
+        generation={generation}
+        polyglot={polyglot}
+      />
 
       {!generatedDigest ? (
         <>
@@ -529,7 +527,7 @@ const DigestGenerateModal = ({ visible, onCancel, onGenerate }) => {
         </>
       ) : (
         <>
-          {renderPreview()}
+          <DigestGeneratedPreview digest={generatedDigest} />
 
           <div style={{ marginTop: 20 }}>
             <Space style={{ width: "100%", justifyContent: "flex-end" }}>

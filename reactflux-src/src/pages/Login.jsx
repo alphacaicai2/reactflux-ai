@@ -44,7 +44,7 @@ const Login = () => {
   const gotoUrlRef = useRef(null)
 
   const [searchParams] = useSearchParams()
-  const urlParamsObj = useMemo(() => Object.fromEntries(searchParams), [])
+  const urlParamsObj = useMemo(() => Object.fromEntries(searchParams), [searchParams])
   const [authMethod, setAuthMethod] = useState(urlParamsObj.username ? "user" : "token")
   const location = useLocation()
   const navigate = useNavigate()
@@ -165,7 +165,7 @@ const Login = () => {
       loginForm.setFieldsValue({ server, token, username, password })
       loginForm.submit()
     }
-  }, [loginForm, polyglot])
+  }, [loginForm])
 
   if (!polyglot) return null
 
@@ -264,8 +264,7 @@ const Login = () => {
   )
 
   return (
-    polyglot && (
-      <div className="page-layout">
+    <div className="page-layout">
         <div className="form-panel">
           <div className="login-form">
             <Typography.Title heading={3}>
@@ -321,7 +320,6 @@ const Login = () => {
         </div>
         <div className="background" />
       </div>
-    )
   )
 }
 

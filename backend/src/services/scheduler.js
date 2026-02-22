@@ -14,6 +14,7 @@ import db from '../db/index.js';
 import { DigestService } from './digest-service.js';
 import { PushService } from './push-service.js';
 import { decrypt } from '../utils/encryption.js';
+import { getMinifluxCredentials } from '../utils/miniflux.js';
 import { getProviderPreset } from '../utils/config.js';
 
 // 存储活跃的定时任务
@@ -34,21 +35,6 @@ function getAIConfig() {
     apiKey: config.api_key_encrypted ? decrypt(config.api_key_encrypted) : null,
     model: config.model,
     ...parseExtraConfig(config.extra_config)
-  };
-}
-
-/**
- * 从数据库获取 Miniflux 配置
- */
-function getMinifluxConfig() {
-  const stmt = db.prepare('SELECT * FROM miniflux_config WHERE is_active = 1 LIMIT 1');
-  const config = stmt.get();
-
-  if (!config) return null;
-
-  return {
-    apiUrl: config.api_url,
-    apiKeyEncrypted: config.api_key_encrypted
   };
 }
 
@@ -101,7 +87,7 @@ async function executeTask(task) {
       throw new Error('AI not configured');
     }
 
-    const minifluxConfig = getMinifluxConfig();
+    const minifluxConfig = getMinifluxCredentials();
     if (!minifluxConfig) {
       throw new Error('Miniflux not configured');
     }

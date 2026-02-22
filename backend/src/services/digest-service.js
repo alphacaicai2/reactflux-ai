@@ -362,7 +362,7 @@ async function callAIForDigest(prompt, aiConfig) {
 
   let timeoutId;
   const timeoutPromise = new Promise((_, reject) => {
-    timeoutId = setTimeout(() => reject(new Error('AI 请求超时，请稍后重试')), 600000);
+    timeoutId = setTimeout(() => reject(new Error('AI 请求超时，请稍后重试')), 120000);
   });
 
   try {

@@ -340,7 +340,9 @@ export function useDigest() {
         } catch (pollErr) {
           console.error("Job polling error:", pollErr)
           clearInterval(pollInterval)
-          failGeneration(pollErr.message || "Polling failed")
+          const msg = pollErr?.message || ""
+          const isNotFound = msg.includes("not found") || msg.includes("Job not found")
+          failGeneration(isNotFound ? "Job expired or server was restarted. Please try again." : msg || "Polling failed")
         }
       }, 3000)
 

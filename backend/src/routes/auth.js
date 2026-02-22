@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { randomUUID } from 'node:crypto';
 import db from '../db/index.js';
-import { decrypt } from '../utils/encryption.js';
+import { getMinifluxCredentials } from '../utils/miniflux.js';
 
 const auth = new Hono();
 
@@ -14,7 +14,6 @@ const FEISHU_ALLOWED_TENANT_KEYS = (process.env.FEISHU_ALLOWED_TENANT_KEYS || ''
   .filter(Boolean);
 
 const SESSION_TTL_DAYS = 7;
-const APP_TOKEN_CACHE_MS = 2 * 60 * 60 * 1000; // 2 hours
 
 let cachedAppAccessToken = null;
 let cachedAppTokenExpiry = 0;
@@ -58,15 +57,6 @@ async function exchangeCodeForUserToken(code) {
     throw new Error(data.msg || 'Failed to exchange code for user token');
   }
   return data.data || data;
-}
-
-function getMinifluxCredentials() {
-  const stmt = db.prepare('SELECT api_url, api_key_encrypted FROM miniflux_config WHERE is_active = 1 LIMIT 1');
-  const row = stmt.get();
-  if (!row || !row.api_url) return null;
-  const apiKey = row.api_key_encrypted ? decrypt(row.api_key_encrypted) : null;
-  if (!apiKey) return null;
-  return { server: row.api_url.replace(/\/$/, ''), token: apiKey };
 }
 
 /**
@@ -121,18 +111,19 @@ auth.post('/feishu/callback', async (c) => {
     const now = new Date().toISOString();
     const expiresAt = new Date(Date.now() + SESSION_TTL_DAYS * 24 * 60 * 60 * 1000).toISOString();
 
-    let userRow = db.prepare('SELECT id FROM users WHERE feishu_open_id = ?').get(openId);
-    if (!userRow) {
-      db.prepare(
-        `INSERT INTO users (feishu_open_id, feishu_union_id, feishu_user_id, name, avatar_url, email, tenant_key, last_login_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-      ).run(openId, unionId || null, userId || null, name, avatarUrl, email || null, tenantKey || null, now, now);
-      userRow = db.prepare('SELECT id FROM users WHERE feishu_open_id = ?').get(openId);
-    } else {
-      db.prepare(
-        'UPDATE users SET name = ?, avatar_url = ?, email = ?, tenant_key = ?, last_login_at = ?, updated_at = ? WHERE id = ?'
-      ).run(name, avatarUrl, email || null, tenantKey || null, now, now, userRow.id);
-    }
+    db.prepare(
+      `INSERT INTO users (feishu_open_id, feishu_union_id, feishu_user_id, name, avatar_url, email, tenant_key, last_login_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(feishu_open_id) DO UPDATE SET
+         name = excluded.name,
+         avatar_url = excluded.avatar_url,
+         email = excluded.email,
+         tenant_key = excluded.tenant_key,
+         last_login_at = excluded.last_login_at,
+         updated_at = excluded.updated_at`
+    ).run(openId, unionId || null, userId || null, name, avatarUrl, email || null, tenantKey || null, now, now);
+
+    const userRow = db.prepare('SELECT id FROM users WHERE feishu_open_id = ?').get(openId);
 
     const sessionToken = randomUUID();
     db.prepare('INSERT INTO sessions (token, user_id, expires_at) VALUES (?, ?, ?)').run(
@@ -154,7 +145,7 @@ auth.post('/feishu/callback', async (c) => {
       data: {
         session: { token: sessionToken, expiresAt },
         user: { name, avatar: avatarUrl, openId },
-        miniflux: { server: miniflux.server, token: miniflux.token },
+        miniflux: { server: miniflux.apiUrl, token: miniflux.apiKey },
       },
     });
   } catch (err) {

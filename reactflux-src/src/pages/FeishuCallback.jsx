@@ -65,7 +65,7 @@ const FeishuCallback = () => {
       })
 
     return () => { cancelled = true }
-  }, [searchParams, navigate, homePage, polyglot])
+  }, [searchParams, navigate, homePage])
 
   if (error) {
     return (

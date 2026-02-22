@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { randomUUID } from 'node:crypto';
 import db from '../db/index.js';
 import { decrypt, encrypt, maskApiKey } from '../utils/encryption.js';
+import { getMinifluxCredentials } from '../utils/miniflux.js';
 import { DigestService } from '../services/digest-service.js';
 import { PushService } from '../services/push-service.js';
 import { SchedulerService } from '../services/scheduler.js';
@@ -261,7 +262,7 @@ digest.post('/preview', async (c) => {
     if (minifluxApiUrl && minifluxApiKey) {
       minifluxConfig = { apiUrl: minifluxApiUrl, apiKey: minifluxApiKey };
     } else {
-      minifluxConfig = getMinifluxConfig();
+      minifluxConfig = getMinifluxCredentials();
     }
 
     if (!minifluxConfig) {
@@ -453,7 +454,7 @@ digest.post('/generate', async (c) => {
     if (minifluxApiUrl && minifluxApiKey) {
       minifluxConfig = { apiUrl: minifluxApiUrl, apiKey: minifluxApiKey };
     } else {
-      minifluxConfig = getMinifluxConfig();
+      minifluxConfig = getMinifluxCredentials();
     }
 
     if (!minifluxConfig) {
