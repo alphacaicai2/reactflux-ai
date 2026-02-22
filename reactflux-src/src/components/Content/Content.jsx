@@ -32,7 +32,7 @@ import {
 } from "@/store/contentState"
 import { dataState } from "@/store/dataState"
 import { duplicateHotkeysState } from "@/store/hotkeysState"
-import { settingsState } from "@/store/settingsState"
+import { settingsState, updateSettings } from "@/store/settingsState"
 
 import "./Content.css"
 
@@ -40,14 +40,19 @@ const Content = ({ info, getEntries, markAllAsRead }) => {
   const { activeContent, entries, filterDate, filterString, isArticleLoading } =
     useStore(contentState)
   const { isAppDataReady } = useStore(dataState)
-  const { enableSwipeGesture, orderBy, orderDirection, showStatus, swipeSensitivity } =
+  const { enableSwipeGesture, entryListWidth, orderBy, orderDirection, showStatus, swipeSensitivity } =
     useStore(settingsState)
   const { polyglot } = useStore(polyglotState)
   const duplicateHotkeys = useStore(duplicateHotkeysState)
 
   const [isSwipingLeft, setIsSwipingLeft] = useState(false)
   const [isSwipingRight, setIsSwipingRight] = useState(false)
+  const [resizeWidth, setResizeWidth] = useState(null)
   const cardsRef = useRef(null)
+  const panelsRef = useRef(null)
+  const resizeStartRef = useRef(null)
+  const resizeCurrentRef = useRef(null)
+  const [isResizing, setIsResizing] = useState(false)
 
   const location = useLocation()
   const params = useParams()
@@ -203,8 +208,55 @@ const Content = ({ info, getEntries, markAllAsRead }) => {
     }
   }, [params])
 
+  useEffect(() => {
+    if (!isResizing || !resizeStartRef.current) return
+    const { startX, startWidth } = resizeStartRef.current
+    resizeCurrentRef.current = startWidth
+    const onMove = (e) => {
+      const delta = e.clientX - startX
+      const el = panelsRef.current
+      const maxW = el ? Math.floor(el.getBoundingClientRect().width * 0.5) : Infinity
+      const next = Math.min(Math.max(280, startWidth + delta), maxW)
+      resizeCurrentRef.current = next
+      setResizeWidth(next)
+    }
+    const onUp = () => {
+      const w = resizeCurrentRef.current !== null ? resizeCurrentRef.current : startWidth
+      updateSettings({ entryListWidth: w })
+      setResizeWidth(null)
+      resizeStartRef.current = null
+      resizeCurrentRef.current = null
+      setIsResizing(false)
+      document.removeEventListener("mousemove", onMove)
+      document.removeEventListener("mouseup", onUp)
+      document.body.style.cursor = ""
+      document.body.style.userSelect = ""
+    }
+    document.body.style.cursor = "col-resize"
+    document.body.style.userSelect = "none"
+    document.addEventListener("mousemove", onMove)
+    document.addEventListener("mouseup", onUp)
+    return () => {
+      document.removeEventListener("mousemove", onMove)
+      document.removeEventListener("mouseup", onUp)
+      document.body.style.cursor = ""
+      document.body.style.userSelect = ""
+    }
+  }, [isResizing])
+
+  const currentEntryWidth = resizeWidth !== null ? resizeWidth : entryListWidth
+  const handleResizeStart = (e) => {
+    e.preventDefault()
+    resizeStartRef.current = { startX: e.clientX, startWidth: currentEntryWidth }
+    setIsResizing(true)
+  }
+
   return (
-    <>
+    <div
+      ref={panelsRef}
+      className="content-panels"
+      style={{ "--entry-list-width": `${currentEntryWidth}px` }}
+    >
       <div
         className="entry-col"
         style={{
@@ -224,6 +276,14 @@ const Content = ({ info, getEntries, markAllAsRead }) => {
           refreshArticleList={fetchArticleListWithRelatedData}
         />
       </div>
+      {!isBelowMedium && (
+        <div
+          className="resize-handle"
+          role="separator"
+          aria-orientation="vertical"
+          onMouseDown={handleResizeStart}
+        />
+      )}
       {activeContent ? (
         <div className="article-container content-wrapper" {...handlers}>
           {!isBelowMedium && <ActionButtons articleAI={articleAI} />}
@@ -256,7 +316,7 @@ const Content = ({ info, getEntries, markAllAsRead }) => {
           </Typography.Title>
         </div>
       )}
-    </>
+    </div>
   )
 }
 

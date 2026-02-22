@@ -5,6 +5,7 @@ import { getBrowserLanguage } from "@/utils/locales"
 const defaultValue = {
   articleWidth: 75,
   compactSidebarGroups: true,
+  entryListWidth: 340,
   coverDisplayMode: "auto",
   edgeToEdgeImages: false,
   enableContextMenu: true,

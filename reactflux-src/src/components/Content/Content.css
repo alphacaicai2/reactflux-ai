@@ -24,9 +24,31 @@
   margin: 10px 10px 10px 0;
 }
 
+.content-panels {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+}
+
 .entry-col {
   display: flex;
   flex-direction: column;
+  width: var(--entry-list-width, 340px);
+  min-width: 280px;
+  max-width: 50%;
+  flex-shrink: 0;
+}
+
+.resize-handle {
+  width: 4px;
+  flex-shrink: 0;
+  cursor: col-resize;
+  background: transparent;
+  transition: background-color 0.15s ease;
+}
+.resize-handle:hover,
+.resize-handle:active {
+  background-color: var(--color-primary-light-2, rgba(var(--primary-6), 0.2));
 }
 
 .swipe-hint {
@@ -68,5 +90,9 @@
   .entry-col {
     border: none;
     width: 100%;
+    max-width: none;
+  }
+  .resize-handle {
+    display: none;
   }
 }

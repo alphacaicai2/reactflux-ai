@@ -1,6 +1,5 @@
 import {
   Button,
-  Divider,
   Form,
   Input,
   Link,
@@ -39,7 +38,6 @@ const Login = () => {
   const [loading, setLoading] = useState(false)
   const [feishuConfig, setFeishuConfig] = useState(null)
   const [feishuConfigLoading, setFeishuConfigLoading] = useState(true)
-  const [showMinifluxForm, setShowMinifluxForm] = useState(false)
   const qrLoginRef = useRef(null)
   const gotoUrlRef = useRef(null)
 
@@ -278,7 +276,7 @@ const Login = () => {
               </div>
             )}
 
-            {!feishuConfigLoading && feishuConfig && !showMinifluxForm && (
+            {!feishuConfigLoading && feishuConfig && (
               <>
                 <div style={{ textAlign: "center", marginBottom: 16 }}>
                   <Typography.Text type="secondary">{polyglot.t("login.feishu_scan")}</Typography.Text>
@@ -287,35 +285,19 @@ const Login = () => {
                   id={FEISHU_QR_CONTAINER_ID}
                   style={{ display: "flex", justifyContent: "center", minHeight: 260 }}
                 />
-                <Divider>{polyglot.t("login.another_login_method")}</Divider>
-                <Button long type="secondary" onClick={() => setShowMinifluxForm(true)}>
-                  {polyglot.t("login.miniflux_login_fallback")}
-                </Button>
               </>
             )}
 
-            {(!feishuConfig || showMinifluxForm) && !feishuConfigLoading && (
-              <>
-                {showMinifluxForm && (
-                  <Button
-                    long
-                    type="text"
-                    style={{ marginBottom: 12 }}
-                    onClick={() => setShowMinifluxForm(false)}
-                  >
-                    ← {polyglot.t("login.back_to_feishu")}
-                  </Button>
-                )}
-                {minifluxFormBlock}
-              </>
-            )}
+            {!feishuConfigLoading && !feishuConfig && minifluxFormBlock}
 
-            <div style={{ display: "flex", marginTop: 40 }}>
-              <Typography.Text disabled>{polyglot.t("login.need_help")}</Typography.Text>
-              <Link href="https://miniflux.app/docs/api.html#authentication" style={{ fontWeight: 500 }}>
-                {polyglot.t("login.miniflux_official_website")}
-              </Link>
-            </div>
+            {!feishuConfig && (
+              <div style={{ display: "flex", marginTop: 40 }}>
+                <Typography.Text disabled>{polyglot.t("login.need_help")}</Typography.Text>
+                <Link href="https://miniflux.app/docs/api.html#authentication" style={{ fontWeight: 500 }}>
+                  {polyglot.t("login.miniflux_official_website")}
+                </Link>
+              </div>
+            )}
           </div>
         </div>
         <div className="background" />

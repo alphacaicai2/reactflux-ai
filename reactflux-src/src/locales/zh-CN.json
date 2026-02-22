@@ -364,6 +364,8 @@
     "model_openrouter_description": "输入 OpenRouter 模型 ID（如 openai/gpt-4o）",
     "model_placeholder": "输入模型名称",
     "select_model": "选择模型",
+    "save_configuration": "保存配置",
+    "save_configuration_description": "将供应商、模型、API 地址和密钥保存到服务器",
     "test_connection": "测试连接",
     "test_connection_description": "测试当前配置是否可以正常连接到 AI 服务",
     "testing": "测试中...",

@@ -241,9 +241,9 @@ const AISettings = () => {
     }
   }, [digestConfig, polyglot])
 
-  // Test connection (requires local API key; cannot use server-stored key for test)
+  // Test connection (uses local API key if entered, otherwise backend-stored key)
   const handleTestConnection = useCallback(async () => {
-    if (!config.provider || !config.model || !localApiKey) {
+    if (!config.provider || !config.model || (!localApiKey && !config.hasStoredApiKey)) {
       Message.warning(polyglot.t("ai.fill_required_fields"))
       return
     }
@@ -252,10 +252,9 @@ const AISettings = () => {
     setTestMessage("")
 
     try {
-      const testConfig = {
-        ...config,
-        apiKey: localApiKey,
-      }
+      const testConfig = { ...config }
+      if (localApiKey) testConfig.apiKey = localApiKey
+      // else omit apiKey so backend uses stored key
       await testConnection(testConfig)
       setTestStatus("success")
       setTestMessage(polyglot.t("ai.connection_success"))
@@ -417,19 +416,27 @@ const AISettings = () => {
           <Divider />
 
           <SettingItem
+            title={polyglot.t("ai.save_configuration")}
+            description={polyglot.t("ai.save_configuration_description")}
+          >
+            <Space direction="vertical">
+              {renderSaveButton()}
+              {saveStatus === "error" && saveMessage && (
+                <Alert type="error" content={saveMessage} style={{ marginTop: 8 }} />
+              )}
+            </Space>
+          </SettingItem>
+
+          <Divider />
+
+          <SettingItem
             title={polyglot.t("ai.test_connection")}
             description={polyglot.t("ai.test_connection_description")}
           >
             <Space direction="vertical">
-              <Space>
-                {renderTestButton()}
-                {renderSaveButton()}
-              </Space>
+              {renderTestButton()}
               {testStatus === "error" && testMessage && (
                 <Alert type="error" content={testMessage} style={{ marginTop: 8 }} />
-              )}
-              {saveStatus === "error" && saveMessage && (
-                <Alert type="error" content={saveMessage} style={{ marginTop: 8 }} />
               )}
             </Space>
           </SettingItem>

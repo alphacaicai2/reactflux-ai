@@ -358,6 +358,8 @@
     "model_openrouter_description": "Enter OpenRouter model ID (e.g., openai/gpt-4o)",
     "model_placeholder": "Enter model name",
     "select_model": "Select model",
+    "save_configuration": "Save Configuration",
+    "save_configuration_description": "Save provider, model, API URL, and key to the server",
     "test_connection": "Test Connection",
     "test_connection_description": "Test if current configuration can connect to AI service",
     "testing": "Testing...",
