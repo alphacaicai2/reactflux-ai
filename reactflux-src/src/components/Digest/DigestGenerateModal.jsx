@@ -114,7 +114,7 @@ const DigestGenerateModal = ({ visible, onCancel, onGenerate }) => {
 
   const [form] = Form.useForm()
   const scope = Form.useWatch("scope", form) ?? "all"
-  const scopeId = Form.useWatch("scopeId", form)
+  const scopeIds = Form.useWatch("scopeIds", form)
   const hours = Form.useWatch("hours", form) ?? 24
   const unreadOnly = Form.useWatch("unreadOnly", form) ?? true
 
@@ -143,24 +143,8 @@ const DigestGenerateModal = ({ visible, onCancel, onGenerate }) => {
           hours,
           unreadOnly,
         }
-        if (scope === "group" && scopeId != null && scopeId !== "") {
-          options.groupId = Number(scopeId)
-        }
-
-        const auth = authState.get()
-        let minifluxApiKey = auth?.token || ""
-        if (!minifluxApiKey && auth?.username && auth?.password) {
-          try {
-            minifluxApiKey = globalThis.btoa(`${auth.username}:${auth.password}`)
-          } catch {
-            minifluxApiKey = globalThis.btoa(
-              unescape(encodeURIComponent(`${auth.username}:${auth.password}`)),
-            )
-          }
-        }
-        if (auth?.server && minifluxApiKey) {
-          options.minifluxApiUrl = auth.server
-          options.minifluxApiKey = minifluxApiKey
+        if (scope === "group" && Array.isArray(scopeIds) && scopeIds.length > 0) {
+          options.groupIds = scopeIds.map(Number)
         }
 
         const res = await previewDigest(options)
@@ -178,7 +162,7 @@ const DigestGenerateModal = ({ visible, onCancel, onGenerate }) => {
         clearTimeout(previewDebounceRef.current)
       }
     }
-  }, [visible, generatedDigest, scope, scopeId, hours, unreadOnly])
+  }, [visible, generatedDigest, scope, scopeIds, hours, unreadOnly])
 
   // Reset state when modal opens
   useEffect(() => {
@@ -236,15 +220,17 @@ const DigestGenerateModal = ({ visible, onCancel, onGenerate }) => {
       }
 
       if (values.scope === "group") {
-        const scopeId = values.scopeId ?? values.groupId
-        if (scopeId == null || scopeId === "") {
+        const ids = values.scopeIds
+        if (!Array.isArray(ids) || ids.length === 0) {
           Message.warning(polyglot.t("digest.select_group"))
           return
         }
-        options.groupId = Number(scopeId)
-        const category = categories.find((c) => Number(c.id) === Number(scopeId))
-        if (category) {
-          options.scopeName = category.title
+        options.groupIds = ids.map(Number)
+        const names = ids
+          .map((id) => categories.find((c) => Number(c.id) === Number(id))?.title)
+          .filter(Boolean)
+        if (names.length > 0) {
+          options.scopeName = names.join(", ")
         }
       }
 
@@ -401,13 +387,23 @@ const DigestGenerateModal = ({ visible, onCancel, onGenerate }) => {
           {scope === "group" && (
             <FormItem
               label={polyglot.t("digest.select_group")}
-              field="scopeId"
-              rules={[{ required: true, message: polyglot.t("digest.select_group") }]}
+              field="scopeIds"
+              rules={[{
+                validator: (value, callback) => {
+                  if (!Array.isArray(value) || value.length === 0) {
+                    callback(polyglot.t("digest.select_group"))
+                  } else {
+                    callback()
+                  }
+                },
+              }]}
             >
               <Select
+                mode="multiple"
                 placeholder={polyglot.t("digest.select_placeholder")}
                 disabled={isGenerating}
                 showSearch
+                allowClear
                 filterOption={(inputValue, option) =>
                   (option?.props?.children ?? "")
                     .toString()

@@ -179,7 +179,7 @@ class MinifluxClient {
  * 获取最近文章（可选仅未读）
  */
 async function getRecentArticles(minifluxClient, options) {
-  const { hours = 24, limit = 500, feedId, groupId, unreadOnly = true } = options;
+  const { hours = 24, limit = 500, feedId, groupId, groupIds, unreadOnly = true } = options;
 
   const effectiveHours = typeof hours === 'number' ? hours : RANGE_HOURS[hours] ?? 24;
 
@@ -201,16 +201,26 @@ async function getRecentArticles(minifluxClient, options) {
 
   if (feedId) entriesOptions.feed_id = parseInt(feedId);
 
-  console.log(`[DigestService] Fetching articles: hours=${effectiveHours}, feedId=${feedId || 'none'}, groupId=${groupId || 'none'}, unreadOnly=${unreadOnly}`);
+  const resolvedIds = Array.isArray(groupIds) && groupIds.length > 0 ? groupIds : (groupId ? [groupId] : []);
+  console.log(`[DigestService] Fetching articles: hours=${effectiveHours}, feedId=${feedId || 'none'}, groupIds=${resolvedIds.length > 0 ? resolvedIds.join(',') : 'none'}, unreadOnly=${unreadOnly}`);
 
   try {
-    let response;
-    if (groupId) {
-      const categoryId = parseInt(groupId);
-      response = await minifluxClient.getCategoryEntries(categoryId, entriesOptions);
-    } else {
-      response = await minifluxClient.getEntries(entriesOptions);
+    if (resolvedIds.length > 0) {
+      const allEntries = [];
+      const seenIds = new Set();
+      for (const gid of resolvedIds) {
+        const response = await minifluxClient.getCategoryEntries(parseInt(gid), entriesOptions);
+        for (const entry of (response.entries || [])) {
+          if (!seenIds.has(entry.id)) {
+            seenIds.add(entry.id);
+            allEntries.push(entry);
+          }
+        }
+      }
+      allEntries.sort((a, b) => new Date(b.published_at) - new Date(a.published_at));
+      return allEntries.slice(0, limit);
     }
+    const response = await minifluxClient.getEntries(entriesOptions);
     return response.entries || [];
   } catch (error) {
     console.error('[DigestService] Fetch entries error:', error);
@@ -499,10 +509,10 @@ export const DigestService = {
    * @returns {Promise<{ articleCount: number, estimatedTokens: number }>}
    */
   async getDigestPreview(minifluxConfig, options) {
-    const { hours = 24, feedId, groupId, unreadOnly = true } = options ?? {};
+    const { hours = 24, feedId, groupId, groupIds, unreadOnly = true } = options ?? {};
 
     const client = this.createMinifluxClient(minifluxConfig);
-    const articles = await getRecentArticles(client, { hours, feedId, groupId, unreadOnly });
+    const articles = await getRecentArticles(client, { hours, feedId, groupId, groupIds, unreadOnly });
 
     if (articles.length === 0) {
       return { articleCount: 0, estimatedTokens: 0 };
@@ -526,11 +536,13 @@ export const DigestService = {
       scope = 'all',
       feedId,
       groupId,
+      groupIds,
       hours = 24,
       targetLang = 'Simplified Chinese',
       prompt: customPrompt,
       unreadOnly = true,
-      timezone = ''
+      timezone = '',
+      scopeName: clientScopeName
     } = options;
 
     const isEn = targetLang && (targetLang.toLowerCase().includes('english') || targetLang.toLowerCase().includes('en'));
@@ -541,6 +553,7 @@ export const DigestService = {
     // 获取 Scope 名称
     let scopeName = isEn ? 'All Subscriptions' : '全部订阅';
     let scopeId = null;
+    const resolvedIds = Array.isArray(groupIds) && groupIds.length > 0 ? groupIds : (groupId ? [groupId] : []);
 
     if (scope === 'feed' && feedId) {
       scopeId = parseInt(feedId);
@@ -551,20 +564,26 @@ export const DigestService = {
         console.warn(`[DigestService] Feed ${feedId} not found`);
         scopeName = isEn ? 'Feed' : '订阅源';
       }
-    } else if (scope === 'group' && groupId) {
-      scopeId = parseInt(groupId);
-      try {
-        const categories = await minifluxClient.getCategories();
-        const category = categories.find(c => c.id === parseInt(groupId));
-        scopeName = category?.title || (isEn ? 'Group' : '分组');
-      } catch (e) {
-        console.warn(`[DigestService] Category ${groupId} not found`);
-        scopeName = isEn ? 'Group' : '分组';
+    } else if (scope === 'group' && resolvedIds.length > 0) {
+      scopeId = resolvedIds.length === 1 ? parseInt(resolvedIds[0]) : resolvedIds.map(Number).join(',');
+      if (clientScopeName) {
+        scopeName = clientScopeName;
+      } else {
+        try {
+          const categories = await minifluxClient.getCategories();
+          const names = resolvedIds
+            .map(gid => categories.find(c => c.id === parseInt(gid))?.title)
+            .filter(Boolean);
+          scopeName = names.length > 0 ? names.join(', ') : (isEn ? 'Groups' : '分组');
+        } catch (e) {
+          console.warn(`[DigestService] Categories lookup failed`);
+          scopeName = isEn ? 'Groups' : '分组';
+        }
       }
     }
 
     // 获取文章
-    const fetchOptions = { hours, feedId, groupId, unreadOnly };
+    const fetchOptions = { hours, feedId, groupIds: resolvedIds.length > 0 ? resolvedIds : undefined, unreadOnly };
     const articles = await getRecentArticles(minifluxClient, fetchOptions);
 
     if (articles.length === 0) {

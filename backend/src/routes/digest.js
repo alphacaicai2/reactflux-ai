@@ -252,6 +252,7 @@ digest.post('/preview', async (c) => {
       scope = 'all',
       feedId,
       groupId,
+      groupIds,
       hours = 24,
       unreadOnly = true,
       minifluxApiUrl,
@@ -267,7 +268,8 @@ digest.post('/preview', async (c) => {
       return c.json({ success: false, error: 'Miniflux not configured' }, 400);
     }
 
-    const options = { scope, feedId, groupId, hours, unreadOnly };
+    const resolvedGroupIds = Array.isArray(groupIds) ? groupIds : (groupId ? [groupId] : undefined);
+    const options = { scope, feedId, groupIds: resolvedGroupIds, hours, unreadOnly };
     const preview = await DigestService.getDigestPreview(minifluxConfig, options);
 
     const aiConfig = getAIConfig();
@@ -430,12 +432,14 @@ digest.post('/generate', async (c) => {
       scope = 'all',
       feedId,
       groupId,
+      groupIds,
       hours = 24,
       targetLang = 'Simplified Chinese',
       prompt: customPrompt,
       unreadOnly = true,
       pushConfig,
       timezone,
+      scopeName: clientScopeName,
       minifluxApiUrl,
       minifluxApiKey
     } = body;
@@ -479,9 +483,10 @@ digest.post('/generate', async (c) => {
         job.status = 'generating';
         job.progress = 20;
 
+        const resolvedGroupIds = Array.isArray(groupIds) ? groupIds : (groupId ? [groupId] : undefined);
         const result = await DigestService.generate(minifluxConfig, aiConfig, {
-          scope, feedId, groupId, hours, targetLang,
-          prompt: customPrompt, unreadOnly, timezone
+          scope, feedId, groupIds: resolvedGroupIds, hours, targetLang,
+          prompt: customPrompt, unreadOnly, timezone, scopeName: clientScopeName
         });
 
         if (!result.success) {
