@@ -167,6 +167,8 @@ const Login = () => {
     }
   }, [loginForm, polyglot])
 
+  if (!polyglot) return null
+
   if (isValidAuth(auth)) {
     return <Navigate to={redirectTo || `/${homePage}`} />
   }
