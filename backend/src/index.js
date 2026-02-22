@@ -6,6 +6,7 @@ import 'dotenv/config';
 
 // Import routes
 import aiRoutes from './routes/ai.js';
+import authRoutes from './routes/auth.js';
 import digestRoutes from './routes/digest.js';
 
 // Import services
@@ -55,6 +56,7 @@ app.get('/health', (c) => {
 
 // API routes
 app.route('/api/ai', aiRoutes);
+app.route('/api/auth', authRoutes);
 app.route('/api/digests', digestRoutes);
 
 // 404 handler

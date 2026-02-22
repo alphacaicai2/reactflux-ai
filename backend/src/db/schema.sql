@@ -63,6 +63,42 @@ CREATE TABLE IF NOT EXISTS miniflux_config (
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Users (Feishu identity)
+CREATE TABLE IF NOT EXISTS users (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  feishu_open_id TEXT UNIQUE NOT NULL,
+  feishu_union_id TEXT,
+  feishu_user_id TEXT,
+  name TEXT,
+  avatar_url TEXT,
+  email TEXT,
+  tenant_key TEXT,
+  is_active INTEGER DEFAULT 1,
+  last_login_at DATETIME,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Sessions (session token for Feishu-logged-in users)
+CREATE TABLE IF NOT EXISTS sessions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  token TEXT UNIQUE NOT NULL,
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  expires_at DATETIME NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Feishu app config (optional; can use env vars instead)
+CREATE TABLE IF NOT EXISTS feishu_config (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  app_id TEXT NOT NULL,
+  app_secret_encrypted TEXT NOT NULL,
+  allowed_tenant_keys TEXT,
+  is_active INTEGER DEFAULT 1,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Create indexes
 CREATE INDEX IF NOT EXISTS idx_ai_config_provider ON ai_config(provider);
 CREATE INDEX IF NOT EXISTS idx_digests_created_at ON digests(created_at);
@@ -70,3 +106,6 @@ CREATE INDEX IF NOT EXISTS idx_digests_scope ON digests(scope, scope_id);
 CREATE INDEX IF NOT EXISTS idx_digests_is_read ON digests(is_read);
 CREATE INDEX IF NOT EXISTS idx_scheduled_tasks_is_active ON scheduled_tasks(is_active);
 CREATE INDEX IF NOT EXISTS idx_scheduled_tasks_next_run ON scheduled_tasks(next_run_at);
+CREATE INDEX IF NOT EXISTS idx_users_feishu_open_id ON users(feishu_open_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token);
+CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);

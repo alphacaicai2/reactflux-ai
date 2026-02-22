@@ -7,6 +7,7 @@ import Digest from "./pages/Digest"
 import ErrorPage from "./pages/ErrorPage"
 import Feed from "./pages/Feed"
 import History from "./pages/History"
+import FeishuCallback from "./pages/FeishuCallback"
 import Login from "./pages/Login"
 import RouterProtect from "./pages/RouterProtect"
 import Starred from "./pages/Starred"
@@ -34,6 +35,7 @@ const routes = Object.entries(pageRoutes).flatMap(([path, element]) => [
 const router = createBrowserRouter(
   [
     { path: "/login", element: <Login /> },
+    { path: "/login/feishu/callback", element: <FeishuCallback /> },
     {
       path: "/",
       element: <App />,

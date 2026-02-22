@@ -20,7 +20,14 @@
     "another_login_method": "Or login with",
     "another_login_button": "Username and password",
     "need_help": "Need more info?",
-    "miniflux_official_website": "Go to Miniflux official website"
+    "miniflux_official_website": "Go to Miniflux official website",
+    "feishu_scan": "Scan with Feishu",
+    "feishu_loading": "Loading QR code...",
+    "feishu_org_denied": "You are not a member of this organization",
+    "feishu_callback_processing": "Processing login...",
+    "miniflux_login_fallback": "Login with Miniflux account",
+    "back_to_feishu": "Back to Feishu scan",
+    "back_to_login": "Back to login"
   },
   "sidebar": {
     "all": "All",

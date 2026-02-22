@@ -5,6 +5,8 @@ const defaultValue = {
   token: "",
   username: "",
   password: "",
+  sessionToken: "",
+  feishuUser: null,
 }
 
 export const authState = persistentAtom("auth", defaultValue, {
