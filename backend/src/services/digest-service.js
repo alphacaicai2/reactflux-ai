@@ -77,15 +77,14 @@ class MinifluxClient {
     this.apiKey = config.apiKey;
     this.authMode = 'token'; // 'token' or 'basic'
 
-    // Detect if the apiKey looks like a Basic Auth credential (base64 encoded username:password)
-    // Miniflux API keys are in format: username:uuid (e.g., "admin:A4B34621-8059-4CC7-948C-4EF017594B38")
-    // Basic Auth credentials are base64 encoded: base64(username:password)
+    // Detect Basic Auth: the key must be strict base64 AND decode to printable ASCII with a colon
     if (this.apiKey) {
       try {
-        const decoded = Buffer.from(this.apiKey, 'base64').toString('utf-8');
-        // If decoded contains a colon but not a UUID pattern, it's likely Basic Auth
-        if (decoded.includes(':') && !decoded.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i)) {
-          this.authMode = 'basic';
+        if (/^[A-Za-z0-9+/]+=*$/.test(this.apiKey)) {
+          const decoded = Buffer.from(this.apiKey, 'base64').toString('utf-8');
+          if (/^[\x20-\x7e]+$/.test(decoded) && decoded.includes(':')) {
+            this.authMode = 'basic';
+          }
         }
       } catch (e) {
         // Not valid base64, use as API key
