@@ -201,6 +201,7 @@ export function useArticleAI(article) {
     setTranslationError(null)
     setParagraphTranslations([])
     setBlocks(list)
+    setShowTranslation(true)
 
     try {
       translationAbortRef.current = createAbortController()
@@ -224,8 +225,6 @@ export function useArticleAI(article) {
         results[idx] = translated || ""
         setParagraphTranslations([...results])
       }
-
-      setShowTranslation(true)
     } catch (err) {
       if (err.name !== "AbortError") {
         console.error("Translation failed:", err)
@@ -252,12 +251,13 @@ export function useArticleAI(article) {
    * Toggle translation view
    */
   const toggleTranslation = useCallback(() => {
-    if (!translatedContent && !isTranslating) {
+    const hasTranslation = paragraphTranslations.some((t) => t)
+    if (!hasTranslation && !isTranslating) {
       translateArticle()
     } else {
       setShowTranslation((prev) => !prev)
     }
-  }, [translatedContent, isTranslating, translateArticle])
+  }, [paragraphTranslations, isTranslating, translateArticle])
 
   /**
    * Cancel all AI operations
